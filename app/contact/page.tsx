@@ -58,12 +58,28 @@ export default function ContactPage() {
     setIsSubmitting(true)
     setError("")
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1000))
+    try {
+      const res = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+      })
 
-    setIsSubmitting(false)
-    setIsSuccess(true)
-    setFormData({ name: "", email: "", phone: "", subject: "", message: "" })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        setError(data.error || "Erreur lors de l'envoi du message")
+        setIsSubmitting(false)
+        return
+      }
+
+      setIsSuccess(true)
+      setFormData({ name: "", email: "", phone: "", subject: "", message: "" })
+    } catch (err) {
+      console.error(err)
+      setError("Erreur lors de l'envoi du message")
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (

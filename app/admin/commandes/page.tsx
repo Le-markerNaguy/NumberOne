@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input"
 import { commandesApi, type CommandeResponse } from "@/lib/api"
 import { OrderStatus } from "@/lib/types"
 import Image from "next/image"
+import { ADMIN_PERMISSIONS } from "@/lib/types"
 
 const statusLabels: Record<OrderStatus, string> = {
   [OrderStatus.PENDING]: "En attente",
@@ -120,7 +121,15 @@ export default function AdminCommandes() {
   const { toast } = useToast()
 
   const updateOrderStatus = async (orderId: string, newStatus: OrderStatus) => {
+   
+     // Vérifier la permission applicative
+  if (!hasPermission(ADMIN_PERMISSIONS.ORDERS_UPDATE)) {
+    toast({ title: "Accès refusé", description: "Vous n'avez pas la permission de modifier les commandes." })
+    return
+  }
+
     try {
+
       const res = await commandesApi.updateStatus(orderId, newStatus as any)
       if (res.success && res.data) {
         setOrders((prev) => prev.map((o) => (o.id === orderId ? { ...o, statut_commande: newStatus as any } : o)))
@@ -142,7 +151,15 @@ export default function AdminCommandes() {
       try {
         const res = await commandesApi.getAll()
         if (mounted && res.success) {
-          setOrders(res.data || [])
+          const data = res.data || []
+          // Ne pas afficher les commandes livrées ou annulées dans la liste principale
+          setOrders(
+            data.filter(
+              (o) =>
+                o.statut_commande !== OrderStatus.DELIVERED &&
+                o.statut_commande !== OrderStatus.CANCELLED,
+            ),
+          )
         }
       } catch (e) {
         console.error("Failed to load commandes:", e)

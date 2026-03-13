@@ -46,17 +46,19 @@ export const INFO_RESTAURANT = {
   },
 }
 
-export const COMMUNES_KINSHASA = [
-  { id: "1", nom: "Gombe", frais_livraison: 2000 },
-  { id: "2", nom: "Lingwala", frais_livraison: 2500 },
-  { id: "3", nom: "Barumbu", frais_livraison: 2500 },
-  { id: "4", nom: "Kinshasa", frais_livraison: 3000 },
-  { id: "5", nom: "Ngiri-Ngiri", frais_livraison: 3000 },
-  { id: "6", nom: "Kasa-Vubu", frais_livraison: 3000 },
-  { id: "7", nom: "Kalamu", frais_livraison: 3500 },
-  { id: "8", nom: "Limete", frais_livraison: 3500 },
-  { id: "9", nom: "Ngaliema", frais_livraison: 4000 },
-  { id: "10", nom: "Mont-Ngafula", frais_livraison: 5000 },
+export const VILLES_GABON = [
+  { id: "1", nom: "Libreville" },
+  { id: "2", nom: "Port-Gentil" },
+  { id: "3", nom: "Franceville" },
+  { id: "4", nom: "Oyem" },
+]
+
+export const QUARTIERS_LIBREVILLE = [
+  { id: "1", nom: "Akebe" },
+  { id: "2", nom: "Nzeng-Ayong" },
+  { id: "3", nom: "Plein Ciel" },
+  { id: "4", nom: "Glass" },
+  { id: "5", nom: "Louis" },
 ]
 
 export const MODES_PAIEMENT = [
@@ -66,9 +68,9 @@ export const MODES_PAIEMENT = [
     description: "Paiement mobile via Airtel Money",
   },
   {
-    id: "mobile_cash",
-    nom: "Mobile Cash",
-    description: "Paiement mobile via Mobile Cash",
+    id: "moov_money",
+    nom: "Moov Money",
+    description: "Paiement mobile via Moov Money",
   },
   {
     id: "livraison",

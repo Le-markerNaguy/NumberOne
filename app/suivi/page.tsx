@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { commandesApi } from "@/lib/api"
 import type { Commande } from "@/lib/types"
 import { STATUTS_COMMANDE } from "@/lib/constants"
+import { supabase } from "@/lib/supabase-client"
 
 export default function SuiviCommandePage() {
   const searchParams = useSearchParams()
@@ -21,8 +22,6 @@ export default function SuiviCommandePage() {
     if (!commandeId) return
 
     let mounted = true
-    let interval: ReturnType<typeof setInterval> | null = null
-
     const load = async () => {
       const res = await commandesApi.getById(commandeId)
       if (!mounted) return
@@ -38,7 +37,6 @@ export default function SuiviCommandePage() {
       // Si livrée, on efface automatiquement la vue
       if (cmd.statut_commande === "livree") {
         setCommande(null)
-        if (interval) clearInterval(interval)
         return
       }
 
@@ -47,11 +45,27 @@ export default function SuiviCommandePage() {
     }
 
     load()
-    interval = setInterval(load, 5000)
+
+    const channel = supabase
+      .channel(`commande-${commandeId}`)
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "commandes", filter: `id=eq.${commandeId}` },
+        (payload) => {
+          const cmd = payload.new as Commande
+          if (cmd.statut_commande === "livree") {
+            setCommande(null)
+            return
+          }
+          setCommande(cmd)
+          setNotFound(false)
+        },
+      )
+      .subscribe()
 
     return () => {
       mounted = false
-      if (interval) clearInterval(interval)
+      supabase.removeChannel(channel)
     }
   }, [commandeId])
 

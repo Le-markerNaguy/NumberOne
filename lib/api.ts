@@ -633,17 +633,25 @@ export const adminsApi = {
   },
 
   async create(data: { nom: string; email: string; mot_de_passe: string; role_id?: string }): Promise<ApiResponse<Admin>> {
-    // Ici on suppose un schéma Supabase:
-    // table "admins" avec colonnes:
-    // id (uuid ou text), nom, email, role, role_id, permissions (text[]), created_at
-    //
-    // Les 3 types d'admins sont gérés via la table "roles":
-    //   - cuisinier
-    //   - caissier
-    //   - manager
-    //
-    // On n'enregistre PAS le mot de passe ici (à gérer via Supabase Auth ou une autre table sécurisée).
+    // 1) Créer le compte dans Supabase Auth (email + mot de passe)
+    const { data: authData, error: authError } = await supabase.auth.signUp({
+      email: data.email,
+      password: data.mot_de_passe,
+      options: {
+        data: {
+          nom: data.nom,
+        },
+      },
+    })
 
+    if (authError || !authData.user) {
+      console.error("Erreur Supabase auth.signUp (admin):", authError)
+      return { success: false, error: "Impossible de créer le compte administrateur" }
+    }
+
+    const userId = authData.user.id
+
+    // 2) Récupérer le rôle applicatif (cuisinier/caissier/manager)
     const { data: role, error: roleError } = await supabase
       .from("roles")
       .select("*")
@@ -654,9 +662,11 @@ export const adminsApi = {
       console.error("Erreur Supabase roles (create admin):", roleError)
     }
 
+    // 3) Enregistrer dans la table admins (sans mot de passe)
     const { data: inserted, error } = await supabase
       .from("admins")
       .insert({
+        id: userId,
         nom: data.nom,
         email: data.email,
         role: role?.name ?? "manager", // rôle par défaut si rien n'est trouvé

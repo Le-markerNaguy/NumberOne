@@ -3,6 +3,7 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
 import type { Client, Admin, UserRole } from "@/lib/types"
 import { adminsApi, clientsApi } from "@/lib/api"
+import { supabase } from "@/lib/supabase-client"
 
 interface AuthContextType {
   // Client auth
@@ -23,6 +24,7 @@ interface AuthContextType {
     telephone: string
     email?: string
   }) => Promise<{ success: boolean; error?: string }>
+  changePassword: (oldPassword: string, newPassword: string) => Promise<{ success: boolean; error?: string }>
   
   // Admin auth
   isAdminAuthenticated: boolean
@@ -138,6 +140,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { success: false, error: res.error || "Impossible de mettre à jour le profil" }
   }
 
+  // Change client password (Supabase Auth)
+  const changePassword = async (oldPassword: string, newPassword: string) => {
+    try {
+      const currentUser = (await supabase.auth.getUser()).data.user
+      if (!currentUser || !currentUser.email) {
+        return { success: false, error: "Non connecté" }
+      }
+
+      // Vérifier l'ancien mot de passe
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: currentUser.email,
+        password: oldPassword,
+      })
+      if (signInError) {
+        return { success: false, error: "Ancien mot de passe incorrect" }
+      }
+
+      // Mettre à jour le mot de passe
+      const { error: updateError } = await supabase.auth.updateUser({
+        password: newPassword,
+      })
+      if (updateError) {
+        console.error("Erreur changement mot de passe:", updateError)
+        return { success: false, error: "Impossible de changer le mot de passe" }
+      }
+
+      return { success: true }
+    } catch (e) {
+      console.error("Erreur changePassword:", e)
+      return { success: false, error: "Erreur lors du changement de mot de passe" }
+    }
+  }
+
   // Admin login
   const adminLogin = async (email: string, password: string) => {
     const response = await adminsApi.login(email, password)
@@ -181,6 +216,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         register,
         logout,
         updateProfile,
+        changePassword,
         // Admin
         isAdminAuthenticated,
         admin,

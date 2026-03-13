@@ -13,7 +13,7 @@ import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { useCart } from "@/contexts/cart-context"
 import { useAuth } from "@/contexts/auth-context"
-import { COMMUNES_KINSHASA, MODES_PAIEMENT } from "@/lib/data"
+import { VILLES_GABON, QUARTIERS_LIBREVILLE, MODES_PAIEMENT } from "@/lib/data"
 import { commandesApi } from "@/lib/api"
 
 export default function CommandePage() {
@@ -31,8 +31,8 @@ export default function CommandePage() {
     name: "",
     phone: "",
     address: "",
-    city: "Kinshasa",
-    commune: "",
+    city: "",
+    quartier: "",
     instructions: "",
   })
 
@@ -81,7 +81,7 @@ export default function CommandePage() {
   }
 
   const handleSubmit = async () => {
-    if (!formData.name || !formData.phone || !formData.address || !formData.commune) {
+    if (!formData.name || !formData.phone || !formData.address) {
       setError("Veuillez remplir tous les champs obligatoires")
       return
     }
@@ -200,7 +200,7 @@ export default function CommandePage() {
             }
           : {
               id: `pay-${Date.now()}`,
-              mode: selectedPayment as "airtel_money" | "mobile_cash" | "livraison",
+              mode: selectedPayment as "airtel_money" | "moov_money" | "livraison",
               montant: total,
               statut: "en_attente",
             }
@@ -213,8 +213,8 @@ export default function CommandePage() {
         tva,
         total,
         adresse_livraison: formData.address,
-        commune: formData.commune,
-        ville: formData.city,
+        commune: formData.quartier || "",
+        ville: formData.city || "Libreville",
         instructions: formData.instructions,
         paiement,
       })
@@ -330,32 +330,39 @@ export default function CommandePage() {
                   />
                 </div>
 
+                {/* Ville et quartier (Gabon) - optionnels */}
                 <div className="grid md:grid-cols-2 gap-4 mt-4">
                   <div className="space-y-2">
-                    <Label htmlFor="city">Ville *</Label>
-                    <Input
+                    <Label htmlFor="city">Ville (optionnel)</Label>
+                    <select
                       id="city"
+                      className="w-full border rounded-lg px-3 py-2 bg-background"
                       value={formData.city}
                       onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                    />
+                    >
+                      <option value="">Sélectionner une ville</option>
+                      {VILLES_GABON.map((ville) => (
+                        <option key={ville.id} value={ville.nom}>
+                          {ville.nom}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="commune">Commune *</Label>
-                    <Select
-                      value={formData.commune}
-                      onValueChange={(value) => setFormData({ ...formData, commune: value })}
+                    <Label htmlFor="quartier">Quartier (optionnel)</Label>
+                    <select
+                      id="quartier"
+                      className="w-full border rounded-lg px-3 py-2 bg-background"
+                      value={formData.quartier}
+                      onChange={(e) => setFormData({ ...formData, quartier: e.target.value })}
                     >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Sélectionner" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {COMMUNES_KINSHASA.map((commune) => (
-                          <SelectItem key={commune.id} value={commune.nom}>
-                            {commune.nom} (+{commune.frais_livraison}f)
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      <option value="">Sélectionner un quartier</option>
+                      {QUARTIERS_LIBREVILLE.map((q) => (
+                        <option key={q.id} value={q.nom}>
+                          {q.nom}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 </div>
 

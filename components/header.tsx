@@ -116,7 +116,7 @@ export function Header() {
                     <Link href="/profil">Mon profil</Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
-                    <Link href="/suivi">Suivi de commande</Link>
+                    <Link href="/mes-commandes">Mes commandes</Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={logout} className="text-destructive">
@@ -126,11 +126,18 @@ export function Header() {
                 </DropdownMenuContent>
               </DropdownMenu>
             ) : (
-              <Link href="/connexion" className="hidden sm:block">
-                <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
-                  Connexion
-                </Button>
-              </Link>
+              <div className="hidden sm:flex items-center gap-2">
+                <Link href="/inscription">
+                  <Button variant="outline">
+                    Inscription
+                  </Button>
+                </Link>
+                <Link href="/connexion">
+                  <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
+                    Connexion
+                  </Button>
+                </Link>
+              </div>
             )}
 
             {/* Mobile Menu Toggle */}
@@ -169,11 +176,11 @@ export function Header() {
                     Mon profil
                   </Link>
                   <Link
-                    href="/suivi"
+                    href="/mes-commandes"
                     className="text-muted-foreground hover:text-foreground transition-colors py-2"
                     onClick={() => setIsMenuOpen(false)}
                   >
-                    Suivi de commande
+                    Mes commandes
                   </Link>
                   <Button
                     variant="ghost"
@@ -188,11 +195,18 @@ export function Header() {
                   </Button>
                 </>
               ) : (
-                <Link href="/connexion" onClick={() => setIsMenuOpen(false)}>
-                  <Button className="w-full bg-primary text-primary-foreground hover:bg-primary/90">
-                    Connexion
-                  </Button>
-                </Link>
+                <>
+                  <Link href="/inscription" onClick={() => setIsMenuOpen(false)}>
+                    <Button variant="outline" className="w-full mb-2">
+                      Inscription
+                    </Button>
+                  </Link>
+                  <Link href="/connexion" onClick={() => setIsMenuOpen(false)}>
+                    <Button className="w-full bg-primary text-primary-foreground hover:bg-primary/90">
+                      Connexion
+                    </Button>
+                  </Link>
+                </>
               )}
             </div>
           </nav>

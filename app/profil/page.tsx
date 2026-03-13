@@ -1,34 +1,63 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { Header } from "@/components/header"
-import { Footer } from "@/components/footer"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { useAuth } from "@/contexts/auth-context"
-import { User, Phone, Mail, Calendar, Edit2, Save, X, Shield, MapPin } from "lucide-react"
-import { useRouter } from "next/navigation"
-import Link from "next/link"
+import { useState, useEffect } from "react";
+import { Header } from "@/components/header";
+import { Footer } from "@/components/footer";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useAuth } from "@/contexts/auth-context";
+import { changePassword } from "@/lib/auth/change-password"
+import {
+  User,
+  Phone,
+  Mail,
+  Calendar,
+  Edit2,
+  Save,
+  X,
+  Shield,
+  MapPin,
+  Lock,
+  Eye,
+  EyeOff,
+} from "lucide-react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 export default function ProfilPage() {
-  const { isAuthenticated, client, updateProfile, isLoading, commandeEnCours } = useAuth()
-  const router = useRouter()
-  const [isEditing, setIsEditing] = useState(false)
+  const { isAuthenticated, client, updateProfile, isLoading, commandeEnCours } =
+    useAuth();
+  const router = useRouter();
+  const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
     nom_complet: "",
     telephone: "",
     email: "",
-  })
-  const [saving, setSaving] = useState(false)
-  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null)
+  });
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState<{
+    type: "success" | "error";
+    text: string;
+  } | null>(null);
+  const [showPasswordForm, setShowPasswordForm] = useState(false);
+  const [passwordForm, setPasswordForm] = useState({
+    oldPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
+  const [passwordError, setPasswordError] = useState("");
+  const [changingPassword, setChangingPassword] = useState(false);
+  const [showOldPassword, setShowOldPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
-      router.push("/connexion")
+      router.push("/connexion");
     }
-  }, [isAuthenticated, isLoading, router])
+  }, [isAuthenticated, isLoading, router]);
 
   useEffect(() => {
     if (client) {
@@ -36,25 +65,31 @@ export default function ProfilPage() {
         nom_complet: client.nom_complet,
         telephone: client.telephone,
         email: client.email || "",
-      })
+      });
     }
-  }, [client])
+  }, [client]);
 
   const handleSave = async () => {
-    setSaving(true)
-    setMessage(null)
+    setSaving(true);
+    setMessage(null);
 
-    const result = await updateProfile(formData)
+    const result = await updateProfile(formData);
 
     if (result.success) {
-      setMessage({ type: "success", text: "Profil mis à jour avec succès" })
-      setIsEditing(false)
+      setMessage({ type: "success", text: "Profil mis à jour avec succès" });
+      setIsEditing(false);
+      setTimeout(() => {
+        setMessage(null);
+      }, 3000);
     } else {
-      setMessage({ type: "error", text: result.error || "Erreur lors de la mise à jour" })
+      setMessage({
+        type: "error",
+        text: result.error || "Erreur lors de la mise à jour",
+      });
     }
 
-    setSaving(false)
-  }
+    setSaving(false);
+  };
 
   if (isLoading || !client) {
     return (
@@ -65,7 +100,7 @@ export default function ProfilPage() {
         </main>
         <Footer />
       </div>
-    )
+    );
   }
 
   return (
@@ -86,7 +121,10 @@ export default function ProfilPage() {
                     Informations personnelles
                   </CardTitle>
                   {!isEditing ? (
-                    <Button variant="outline" onClick={() => setIsEditing(true)}>
+                    <Button
+                      variant="outline"
+                      onClick={() => setIsEditing(true)}
+                    >
                       <Edit2 className="w-4 h-4 mr-2" />
                       Modifier
                     </Button>
@@ -95,18 +133,22 @@ export default function ProfilPage() {
                       <Button
                         variant="outline"
                         onClick={() => {
-                          setIsEditing(false)
+                          setIsEditing(false);
                           setFormData({
                             nom_complet: client.nom_complet,
                             telephone: client.telephone,
                             email: client.email || "",
-                          })
+                          });
                         }}
                       >
                         <X className="w-4 h-4 mr-2" />
                         Annuler
                       </Button>
-                      <Button onClick={handleSave} disabled={saving} className="bg-primary text-primary-foreground">
+                      <Button
+                        onClick={handleSave}
+                        disabled={saving}
+                        className="bg-primary text-primary-foreground"
+                      >
                         <Save className="w-4 h-4 mr-2" />
                         {saving ? "Enregistrement..." : "Enregistrer"}
                       </Button>
@@ -124,7 +166,10 @@ export default function ProfilPage() {
 
                   <div className="grid md:grid-cols-2 gap-6">
                     <div className="space-y-2">
-                      <Label htmlFor="nom_complet" className="flex items-center gap-2">
+                      <Label
+                        htmlFor="nom_complet"
+                        className="flex items-center gap-2"
+                      >
                         <User className="w-4 h-4 text-muted-foreground" />
                         Nom complet
                       </Label>
@@ -132,16 +177,26 @@ export default function ProfilPage() {
                         <Input
                           id="nom_complet"
                           value={formData.nom_complet}
-                          onChange={(e) => setFormData({ ...formData, nom_complet: e.target.value })}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              nom_complet: e.target.value,
+                            })
+                          }
                           className="w-full"
                         />
                       ) : (
-                        <p className="text-lg font-medium">{client.nom_complet}</p>
+                        <p className="text-lg font-medium">
+                          {client.nom_complet}
+                        </p>
                       )}
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="telephone" className="flex items-center gap-2">
+                      <Label
+                        htmlFor="telephone"
+                        className="flex items-center gap-2"
+                      >
                         <Phone className="w-4 h-4 text-muted-foreground" />
                         Numéro de téléphone
                       </Label>
@@ -149,16 +204,26 @@ export default function ProfilPage() {
                         <Input
                           id="telephone"
                           value={formData.telephone}
-                          onChange={(e) => setFormData({ ...formData, telephone: e.target.value })}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              telephone: e.target.value,
+                            })
+                          }
                           className="w-full"
                         />
                       ) : (
-                        <p className="text-lg font-medium">{client.telephone}</p>
+                        <p className="text-lg font-medium">
+                          {client.telephone}
+                        </p>
                       )}
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="email" className="flex items-center gap-2">
+                      <Label
+                        htmlFor="email"
+                        className="flex items-center gap-2"
+                      >
                         <Mail className="w-4 h-4 text-muted-foreground" />
                         Email (optionnel)
                       </Label>
@@ -167,12 +232,16 @@ export default function ProfilPage() {
                           id="email"
                           type="email"
                           value={formData.email}
-                          onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                          onChange={(e) =>
+                            setFormData({ ...formData, email: e.target.value })
+                          }
                           placeholder="votre@email.com"
                           className="w-full"
                         />
                       ) : (
-                        <p className="text-lg font-medium">{client.email || "Non renseigné"}</p>
+                        <p className="text-lg font-medium">
+                          {client.email || "Non renseigné"}
+                        </p>
                       )}
                     </div>
 
@@ -182,11 +251,14 @@ export default function ProfilPage() {
                         Membre depuis
                       </Label>
                       <p className="text-lg font-medium">
-                        {new Date(client.date_inscription).toLocaleDateString("fr-FR", {
-                          year: "numeric",
-                          month: "long",
-                          day: "numeric",
-                        })}
+                        {new Date(client.date_inscription).toLocaleDateString(
+                          "fr-FR",
+                          {
+                            year: "numeric",
+                            month: "long",
+                            day: "numeric",
+                          },
+                        )}
                       </p>
                     </div>
                   </div>
@@ -201,8 +273,183 @@ export default function ProfilPage() {
                     Sécurité
                   </CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <Button variant="outline">Changer le mot de passe</Button>
+                <CardContent className="space-y-4">
+                  {!showPasswordForm ? (
+                    <Button
+                      variant="outline"
+                      onClick={() => setShowPasswordForm(true)}
+                    >
+                      <Lock className="w-4 h-4 mr-2" />
+                      Changer le mot de passe
+                    </Button>
+                  ) : (
+                    <div className="space-y-4">
+                      {passwordError && (
+                        <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">
+                          {passwordError}
+                        </div>
+                      )}
+                      <div className="space-y-2">
+                        <Label htmlFor="oldPassword">Ancien mot de passe</Label>
+                        <div className="relative">
+                          <Input
+                            id="oldPassword"
+                            type={showOldPassword ? "text" : "password"}
+                            value={passwordForm.oldPassword}
+                            onChange={(e) =>
+                              setPasswordForm({
+                                ...passwordForm,
+                                oldPassword: e.target.value,
+                              })
+                            }
+                          />
+                          <button
+                            type="button"
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                            onClick={() => setShowOldPassword((v) => !v)}
+                          >
+                            {showOldPassword ? (
+                              <EyeOff className="w-4 h-4" />
+                            ) : (
+                              <Eye className="w-4 h-4" />
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="newPassword">
+                          Nouveau mot de passe
+                        </Label>
+                        <div className="relative">
+                          <Input
+                            id="newPassword"
+                            type={showNewPassword ? "text" : "password"}
+                            value={passwordForm.newPassword}
+                            onChange={(e) =>
+                              setPasswordForm({
+                                ...passwordForm,
+                                newPassword: e.target.value,
+                              })
+                            }
+                          />
+                          <button
+                            type="button"
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                            onClick={() => setShowNewPassword((v) => !v)}
+                          >
+                            {showNewPassword ? (
+                              <EyeOff className="w-4 h-4" />
+                            ) : (
+                              <Eye className="w-4 h-4" />
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="confirmPassword">
+                          Confirmer le nouveau mot de passe
+                        </Label>
+                        <div className="relative">
+                          <Input
+                            id="confirmPassword"
+                            type={showConfirmPassword ? "text" : "password"}
+                            value={passwordForm.confirmPassword}
+                            onChange={(e) =>
+                              setPasswordForm({
+                                ...passwordForm,
+                                confirmPassword: e.target.value,
+                              })
+                            }
+                          />
+                          <button
+                            type="button"
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                            onClick={() => setShowConfirmPassword((v) => !v)}
+                          >
+                            {showConfirmPassword ? (
+                              <EyeOff className="w-4 h-4" />
+                            ) : (
+                              <Eye className="w-4 h-4" />
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          variant="outline"
+                          onClick={() => {
+                            setShowPasswordForm(false);
+                            setPasswordForm({
+                              oldPassword: "",
+                              newPassword: "",
+                              confirmPassword: "",
+                            });
+                            setPasswordError("");
+                          }}
+                          disabled={changingPassword}
+                        >
+                          Annuler
+                        </Button>
+                        <Button
+                          className="bg-primary text-primary-foreground"
+                          disabled={
+                            changingPassword ||
+                            !passwordForm.oldPassword ||
+                            !passwordForm.newPassword ||
+                            !passwordForm.confirmPassword
+                          }
+                          onClick={async () => {
+                            setPasswordError("");
+                            if (
+                              passwordForm.newPassword !==
+                              passwordForm.confirmPassword
+                            ) {
+                              setPasswordError(
+                                "Les mots de passe ne correspondent pas",
+                              );
+                              return;
+                            }
+
+                            if (passwordForm.newPassword.length < 6) {
+                              setPasswordError(
+                                "Le mot de passe doit contenir au moins 6 caractères",
+                              );
+                              return;
+                            }
+
+                            setChangingPassword(true);
+                            const res = await changePassword(
+                              passwordForm.oldPassword,
+                              passwordForm.newPassword,
+                            );
+                            setChangingPassword(false);
+                            if (!res.success) {
+                              setPasswordError(
+                                res.error ||
+                                  "Impossible de changer le mot de passe",
+                              );
+                              return;
+                            }
+                            setMessage({
+                              type: "success",
+                              text: "Mot de passe modifié avec succès",
+                            });
+                            setTimeout(() => {
+                              setMessage(null);
+                            }, 3000);
+                            setShowPasswordForm(false);
+                            setPasswordForm({
+                              oldPassword: "",
+                              newPassword: "",
+                              confirmPassword: "",
+                            });
+                          }}
+                        >
+                          {changingPassword ? "Modification..." : "Valider"}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </div>
@@ -219,11 +466,18 @@ export default function ProfilPage() {
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <p className="text-sm text-muted-foreground mb-2">Commande #{commandeEnCours.id}</p>
-                    <p className="font-medium capitalize mb-4">{commandeEnCours.statut_commande.replace("_", " ")}</p>
-                    <Link href={`/suivi?id=${commandeEnCours.id}`}>
-                      <Button className="w-full bg-primary text-primary-foreground" size="sm">
-                        Suivre ma commande
+                    <p className="text-sm text-muted-foreground mb-2">
+                      Commande #{commandeEnCours.id}
+                    </p>
+                    <p className="font-medium capitalize mb-4">
+                      {commandeEnCours.statut_commande.replace("_", " ")}
+                    </p>
+                    <Link href="/mes-commandes">
+                      <Button
+                        className="w-full bg-primary text-primary-foreground"
+                        size="sm"
+                      >
+                        Voir mes commandes
                       </Button>
                     </Link>
                   </CardContent>
@@ -237,13 +491,19 @@ export default function ProfilPage() {
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <Link href="/menu" className="block">
-                    <Button variant="outline" className="w-full justify-start bg-transparent">
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start bg-transparent"
+                    >
                       <MapPin className="w-4 h-4 mr-2" />
                       Voir le menu
                     </Button>
                   </Link>
                   <Link href="/panier" className="block">
-                    <Button variant="outline" className="w-full justify-start bg-transparent">
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start bg-transparent"
+                    >
                       <Calendar className="w-4 h-4 mr-2" />
                       Mon panier
                     </Button>
@@ -257,5 +517,5 @@ export default function ProfilPage() {
 
       <Footer />
     </div>
-  )
+  );
 }

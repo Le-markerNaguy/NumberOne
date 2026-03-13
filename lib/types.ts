@@ -90,7 +90,7 @@ export interface LigneCommande {
 
 export interface Paiement {
   id: string
-  mode: "airtel_money" | "mobile_cash" | "livraison"
+  mode: "airtel_money" | "moov_money" | "livraison"
   montant: number
   statut: "en_attente" | "confirme" | "echoue"
   montant_en_especes?: number
