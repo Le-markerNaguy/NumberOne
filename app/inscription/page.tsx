@@ -85,7 +85,13 @@ export default function InscriptionPage() {
       })
 
       if (!result.success) {
-        setError(result.error || "Erreur lors de l'inscription")
+        const msg = result.error || "Erreur lors de l'inscription"
+        setError(msg)
+        if (msg.toLowerCase().includes("confirmer votre email") || msg.toLowerCase().includes("confirmation email")) {
+          const q = new URLSearchParams()
+          if (formData.email) q.set("email", formData.email)
+          router.push(`/confirmation-email${q.toString() ? `?${q.toString()}` : ""}`)
+        }
         setSubmitting(false)
         return
       }

@@ -81,8 +81,8 @@ export default function MesCommandesPage() {
                 Historique de toutes vos commandes passées.
               </p>
             </div>
-            <Button variant="outline" onClick={() => router.push("/suivi")}>
-              Suivi en temps réel
+            <Button variant="outline" onClick={() => router.push("/profil")}>
+              Mon profil
             </Button>
           </div>
 
@@ -138,9 +138,9 @@ export default function MesCommandesPage() {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => router.push(`/suivi?id=${order.id}`)}
+                        onClick={() => router.push(`/mes-commandes/${order.id}`)}
                       >
-                        Suivre cette commande
+                        Détails de la commande
                       </Button>
                     </div>
                   </CardContent>

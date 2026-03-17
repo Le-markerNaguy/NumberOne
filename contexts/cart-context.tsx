@@ -43,7 +43,7 @@ const CartContext = createContext<CartContextType | undefined>(undefined)
 export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([])
   const [fraisLivraison, setFraisLivraison] = useState(2000)
-  const [tvaPourcentage, setTvaPourcentage] = useState(0.16)
+  const [tvaPourcentage, setTvaPourcentage] = useState(0)
   const [commandeMinimum, setCommandeMinimum] = useState(0)
   const [livraisonGratuiteSeuil, setLivraisonGratuiteSeuil] = useState(0)
 
@@ -72,7 +72,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       if (!mounted || !res.success || !res.data) return
 
       setFraisLivraison(res.data.frais_livraison_defaut)
-      setTvaPourcentage((res.data.tva_pourcentage ?? 16) / 100)
+      setTvaPourcentage(0)
       setCommandeMinimum(res.data.commande_minimum ?? 0)
       setLivraisonGratuiteSeuil(res.data.livraison_gratuite_seuil ?? 0)
     }
@@ -91,7 +91,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         ? 0
         : fraisLivraison
       : 0
-  const total = sousTotal + tva + effectiveFraisLivraison
+  const total = sousTotal + effectiveFraisLivraison
 
   const addSimpleItem = (plat: Plat, variation?: Variation, quantite = 1) => {
     const selectedVariation = variation || plat.variations?.[1] || plat.variations?.[0]

@@ -18,7 +18,7 @@ import { commandesApi } from "@/lib/api"
 
 export default function CommandePage() {
   const router = useRouter()
-  const { items, sousTotal, fraisLivraison, tva, total, clearCart, commandeMinimum, tvaPourcentage } = useCart()
+  const { items, sousTotal, fraisLivraison, total, clearCart, commandeMinimum } = useCart()
   const { isAuthenticated, client, isLoading: authLoading } = useAuth()
 
   const [selectedPayment, setSelectedPayment] = useState<string>("airtel_money")
@@ -210,7 +210,7 @@ export default function CommandePage() {
         lignes,
         sous_total: sousTotal,
         frais_livraison: fraisLivraison,
-        tva,
+        tva: 0,
         total,
         adresse_livraison: formData.address,
         commune: formData.quartier || "",
@@ -475,10 +475,6 @@ export default function CommandePage() {
                   <div className="flex justify-between text-muted-foreground">
                     <span>Frais de livraison</span>
                     <span>{fraisLivraison.toFixed(0)}f</span>
-                  </div>
-                  <div className="flex justify-between text-muted-foreground">
-                    <span>TVA ({Math.round(tvaPourcentage * 100)}%)</span>
-                    <span>{tva.toFixed(0)}f</span>
                   </div>
                   <div className="flex justify-between text-xl font-bold pt-3 border-t border-border">
                     <span>Total</span>

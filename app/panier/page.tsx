@@ -11,7 +11,7 @@ import { useCart } from "@/contexts/cart-context"
 import { useAuth } from "@/contexts/auth-context"
 
 export default function PanierPage() {
-  const { items, sousTotal, fraisLivraison, tva, total, tvaPourcentage, updateQuantity, removeItem } = useCart()
+  const { items, sousTotal, fraisLivraison, total, updateQuantity, removeItem } = useCart()
   const { isAuthenticated } = useAuth()
 
   const getItemDetails = (item: (typeof items)[0]) => {
@@ -158,10 +158,6 @@ export default function PanierPage() {
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Frais de livraison</span>
                     <span className="font-medium">{fraisLivraison.toFixed(0)}f</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">TVA ({Math.round(tvaPourcentage * 100)}%)</span>
-                    <span className="font-medium">{tva.toFixed(0)}f</span>
                   </div>
                   <div className="border-t pt-4 flex justify-between items-center">
                     <span className="font-bold text-lg">Total</span>

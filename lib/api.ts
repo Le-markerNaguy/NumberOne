@@ -112,15 +112,24 @@ export const clientsApi = {
     email?: string
     mot_de_passe: string
   }): Promise<ApiResponse<Client>> {
+    const requireEmailConfirmation = process.env.NEXT_PUBLIC_REQUIRE_EMAIL_CONFIRMATION 
+
     // On utilise Supabase Auth pour gérer le mot de passe.
-    // Si l’email n’est pas fourni, on génère un email technique basé sur le téléphone.
-    const authEmail = data.email && data.email.trim() !== "" ? data.email : `${data.telephone}@cube.local`
+    // - Mode sans confirmation email: si l’email n’est pas fourni, on génère un email technique basé sur le téléphone.
+    // - Mode avec confirmation email: on exige un vrai email (sinon pas de confirmation possible).
+    const emailInput = data.email?.trim()
+    if (requireEmailConfirmation && (!emailInput || emailInput === "")) {
+      return { success: false, error: "Un email est requis pour créer un compte (confirmation email activée)." }
+    }
+
+    const authEmail = emailInput && emailInput !== "" ? emailInput : `${data.telephone}@cube.local`
 
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email: authEmail,
       password: data.mot_de_passe,
       options: {
         data: {
+          user_type: "client",
           nom_complet: data.nom_complet,
           telephone: data.telephone,
         },
@@ -128,30 +137,86 @@ export const clientsApi = {
     })
 
     if (authError || !authData.user) {
+      const msg = String((authError as any)?.message || "")
       console.error("Erreur Supabase auth.signUp (client):", authError)
+      if (msg.toLowerCase().includes("email signups are disabled")) {
+        return {
+          success: false,
+          error:
+            "Les inscriptions par email sont désactivées côté Supabase. Active Email provider + 'Enable signups' dans Authentication, puis réessaie.",
+        }
+      }
+      if (msg.toLowerCase().includes("user already registered")) {
+        return {
+          success: false,
+          error: "Ce compte existe déjà. Connecte-toi plutôt via la page Connexion.",
+        }
+      }
       return { success: false, error: "Impossible de créer le compte. Veuillez réessayer." }
     }
 
     const userId = authData.user.id
 
-    const { data: inserted, error } = await supabase
-      .from("clients")
-      .insert({
-        id: userId,
-        nom_complet: data.nom_complet,
-        telephone: data.telephone,
-        email: data.email ?? null,
-        date_inscription: new Date().toISOString(),
-      })
-      .select("*")
-      .maybeSingle()
+    // Selon la config Supabase (confirmation email), signUp peut ne pas créer de session.
+    // Sans session, les RLS bloquent souvent l'insert dans `clients`.
+    if (!authData.session) {
+      if (requireEmailConfirmation) {
+        return {
+          success: false,
+          error:
+            "Compte créé. Veuillez confirmer votre email (lien envoyé) puis connectez-vous pour finaliser l'inscription.",
+        }
+      }
 
-    if (error || !inserted) {
-      console.error("Erreur Supabase clients.register:", error)
-      return { success: false, error: "Compte créé mais impossible d'enregistrer le profil client." }
+      const { error: signInAfterSignUpError } = await supabase.auth.signInWithPassword({
+        email: authEmail,
+        password: data.mot_de_passe,
+      })
+
+      if (signInAfterSignUpError) {
+        console.error("Erreur Supabase client signIn après signUp:", {
+          message: (signInAfterSignUpError as any)?.message,
+          status: (signInAfterSignUpError as any)?.status,
+          name: (signInAfterSignUpError as any)?.name,
+        })
+        return {
+          success: false,
+          error:
+            "Compte créé, mais la session n'a pas pu être ouverte. Vérifie si la confirmation email est activée dans Supabase Auth, puis réessaie après validation.",
+        }
+      }
     }
 
-    return { success: true, data: inserted as Client }
+    // IMPORTANT:
+    // Le profil client doit être créé côté DB (trigger `handle_new_user()` sur `auth.users`)
+    // pour éviter les erreurs 403/RLS lors d'insert depuis le navigateur.
+    // On tente de récupérer le profil; si la policy SELECT n'est pas en place, on renvoie un profil minimal.
+    const { data: clientRow, error: fetchError } = await supabase
+      .from("clients")
+      .select("*")
+      .eq("id", userId)
+      .maybeSingle()
+
+    if (fetchError) {
+      console.error("Erreur Supabase clients.register (fetch profil):", {
+        message: (fetchError as any)?.message,
+        code: (fetchError as any)?.code,
+        details: (fetchError as any)?.details,
+        hint: (fetchError as any)?.hint,
+        status: (fetchError as any)?.status,
+        raw: fetchError,
+      })
+    }
+
+    const fallbackProfile: Client = {
+      id: userId,
+      nom_complet: data.nom_complet,
+      telephone: data.telephone,
+      email: data.email,
+      date_inscription: new Date().toISOString(),
+    }
+
+    return { success: true, data: (clientRow as Client) ?? fallbackProfile }
   },
 
   async login(identifier: string, password: string): Promise<ApiResponse<Client>> {
@@ -639,6 +704,7 @@ export const adminsApi = {
       password: data.mot_de_passe,
       options: {
         data: {
+          user_type: "admin",
           nom: data.nom,
         },
       },
