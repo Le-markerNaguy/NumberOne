@@ -51,14 +51,14 @@ export default function AdminConnexionPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 to-orange-100">
+      <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-orange-50 to-orange-100">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 via-white to-orange-100 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-orange-50 via-white to-orange-100 p-4">
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
@@ -142,19 +142,7 @@ export default function AdminConnexionPage() {
                 )}
               </Button>
             </form>
-
-            {/* Demo credentials hint */}
-            <div className="mt-6 p-4 bg-muted/50 rounded-lg">
-              <p className="text-sm text-muted-foreground text-center">
-                <strong>Comptes de test:</strong>
-              </p>
-              <div className="mt-2 space-y-1 text-xs text-muted-foreground">
-                <p>Super Admin: <code className="bg-muted px-1 rounded">superadmin@cube.com</code></p>
-                <p>Admin: <code className="bg-muted px-1 rounded">admin@cube.com</code></p>
-                <p>Mot de passe: <code className="bg-muted px-1 rounded">demo123</code></p>
-              </div>
-            </div>
-
+            
             <div className="mt-6 text-center">
               <Link 
                 href="/" 

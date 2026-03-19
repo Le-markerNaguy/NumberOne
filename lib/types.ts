@@ -42,7 +42,7 @@ export interface Plat {
   type: "base" | "accompagnement" | "supplement" | "menu"
   prix_base: number
   categorie: string
-  image?: string
+  image: string
   statut: StatutPlat
   variations?: Variation[]
   created_at?: string

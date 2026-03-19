@@ -1,7 +1,7 @@
 // This file simulates API calls - in production, replace with real API endpoints
 
 import { platsBase, platsAccompagnement, platsSupplements, platsMenu } from "./data"
-import type { Plat, Commande, Admin, Role, StatutCommande, Client } from "./types"
+import type { Plat, Commande, Admin, Role, StatutCommande, Client, LigneCommande } from "./types"
 import { OrderStatus } from "./types"
 import { supabase } from "./supabase-client"
 
@@ -17,8 +17,33 @@ export interface PlatResponse extends Plat {}
 
 export interface CommandeResponse extends Commande {}
 
-// ATTENTION: pour les commandes et statistiques, on utilise encore des données simulées.
-// Tu pourras plus tard migrer ces parties vers Supabase comme pour les admins/rôles.
+// Helpers de normalisation pour les colonnes JSON (compatibilité avec anciens schémas texte)
+function parseJsonSafe<T>(value: any, fallback: T): T {
+  if (value == null) return fallback
+  if (Array.isArray(value) || typeof value === "object") return value as T
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value)
+      return (parsed ?? fallback) as T
+    } catch {
+      return fallback
+    }
+  }
+  return fallback
+}
+
+function normalizeCommandeRow(row: any): CommandeResponse {
+  const lignes = parseJsonSafe<LigneCommande[]>(row.lignes, [])
+  const client = parseJsonSafe<Client | null>(row.client, row.client ?? null) as Client | null
+  const paiement = parseJsonSafe<any | null>(row.paiement, row.paiement ?? null)
+
+  return {
+    ...(row as Commande),
+    lignes,
+    client: client as any,
+    paiement,
+  } as CommandeResponse
+}
 
 let mockCommandes: Commande[] = [
   {
@@ -464,7 +489,8 @@ export const commandesApi = {
       return { success: false, error: "Impossible de charger les commandes" }
     }
 
-    return { success: true, data: (data || []) as CommandeResponse[] }
+    const rows = (data || []).map(normalizeCommandeRow)
+    return { success: true, data: rows }
   },
 
   async getMine(): Promise<ApiResponse<CommandeResponse[]>> {
@@ -481,7 +507,8 @@ export const commandesApi = {
       return { success: false, error: "Impossible de charger les commandes" }
     }
 
-    return { success: true, data: (data || []) as CommandeResponse[] }
+    const rows = (data || []).map(normalizeCommandeRow)
+    return { success: true, data: rows }
   },
 
   async getById(id: string): Promise<ApiResponse<CommandeResponse>> {
@@ -500,7 +527,7 @@ export const commandesApi = {
       return { success: false, error: "Commande non trouvée" }
     }
 
-    return { success: true, data: data as CommandeResponse }
+    return { success: true, data: normalizeCommandeRow(data) }
   },
 
   async updateStatus(id: string, status: StatutCommande): Promise<ApiResponse<CommandeResponse>> {
@@ -634,8 +661,9 @@ export const statsApi = {
 
       const countByPlat: Record<string, { nom: string; commandes: number }> = {}
       ;(commandesAll || []).forEach((c: any) => {
-        (c.lignes || []).forEach((l: any) => {
-          const key = l.nom_plat || "Autre"
+        const lignes = parseJsonSafe<LigneCommande[]>(c.lignes, [])
+        lignes.forEach((l: any) => {
+          const key = l.nom_plat || l.nom || "Autre"
           if (!countByPlat[key]) {
             countByPlat[key] = { nom: key, commandes: 0 }
           }

@@ -1,7 +1,8 @@
 "use client"
 
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
-import { categories as defaultCategories, type Plat } from "@/lib/data"
+import { categories as defaultCategories} from "@/lib/data"
+import { Plat } from "@/lib/types"
 import { platsApi } from "@/lib/api"
 
 interface DishesContextType {
@@ -10,6 +11,11 @@ interface DishesContextType {
   platsAccompagnement: Plat[]
   platsSupplements: Plat[]
   popularDishes: Plat[]
+  publicPlatsMenu: Plat[]
+  publicPlatsBase: Plat[]
+  publicPlatsAccompagnement: Plat[]
+  publicPlatsSupplements: Plat[]
+  publicPopularDishes: Plat[]
   categories: string[]
   isLoading: boolean
   addPlat: (plat: Plat) => void
@@ -28,6 +34,12 @@ export function DishesProvider({ children }: { children: ReactNode }) {
   const [popularDishes, setPopularDishes] = useState<Plat[]>([])
   const [categories, setCategories] = useState<string[]>(defaultCategories)
 
+  const publicPlatsMenu = platsMenu.filter((p) => p.statut === "actif")
+  const publicPlatsBase = platsBase.filter((p) => p.statut === "actif")
+  const publicPlatsAccompagnement = platsAccompagnement.filter((p) => p.statut === "actif")
+  const publicPlatsSupplements = platsSupplements.filter((p) => p.statut === "actif")
+  const publicPopularDishes = publicPlatsMenu.slice(0, 4)
+
   useEffect(() => {
     let mounted = true
 
@@ -45,7 +57,7 @@ export function DishesProvider({ children }: { children: ReactNode }) {
 
         if (menuRes.success && menuRes.data) {
           setPlatsMenu(menuRes.data as any)
-          // Dishes populaires = 4 premiers menus
+          // Dishes populaires = 4 premiers menus (liste complète, le public filtrera sur `statut`)
           setPopularDishes((menuRes.data as any).slice(0, 4))
         }
         if (baseRes.success && baseRes.data) setPlatsBase(baseRes.data as any)
@@ -166,6 +178,11 @@ export function DishesProvider({ children }: { children: ReactNode }) {
         platsAccompagnement,
         platsSupplements,
         popularDishes,
+        publicPlatsMenu,
+        publicPlatsBase,
+        publicPlatsAccompagnement,
+        publicPlatsSupplements,
+        publicPopularDishes,
         categories,
         isLoading,
         addPlat,

@@ -14,14 +14,14 @@ import Link from "next/link"
 export default function MenuPage() {
   const [activeCategory, setActiveCategory] = useState("Plat-menus")
   const { addSimpleItem } = useCart()
-  const { platsMenu, categories, isLoading } = useDishes()
+  const { publicPlatsMenu, categories, isLoading } = useDishes()
 
   const menuCategories = categories.filter((c) => c === "Tous" || c === "Plat-menus")
 
   const filteredDishes =
-    platsMenu
+    publicPlatsMenu
       .filter((p) => p.categorie === "Plat-menus")
-      .filter((p) => (activeCategory === "Tous" ? p.statut === "actif" : p.categorie === activeCategory && p.statut === "actif"))
+      .filter((p) => (activeCategory === "Tous" ? true : p.categorie === activeCategory))
 
   const handleAddToCart = (plat: any) => {
     addSimpleItem(plat)

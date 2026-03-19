@@ -70,11 +70,11 @@ export default function AdminCommandes() {
     {
       label: "Nouvelles",
       value: orders.filter((o) => o.statut_commande === OrderStatus.PENDING).length,
-      highlight: "+3 depuis 1h",
+      highlight: " ",
       highlightColor: "text-orange-500",
     },
-    { label: "En preparation", value: orders.filter((o) => o.statut_commande === OrderStatus.PREPARING).length },
-    { label: "En livraison", value: orders.filter((o) => o.statut_commande === OrderStatus.DELIVERING).length },
+    { label: "Confirmees", value: orders.filter((o) => o.statut_commande === OrderStatus.CONFIRMED).length },
+    { label: "Pretes", value: orders.filter((o) => o.statut_commande === OrderStatus.READY).length },
     { label: "Livrees aujourd'hui", value: orders.filter((o) => o.statut_commande === OrderStatus.DELIVERED).length },
   ]
 

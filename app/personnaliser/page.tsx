@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
 import { Button } from "@/components/ui/button"
@@ -18,11 +18,11 @@ import type { Plat, Variation } from "@/lib/data"
 export default function PersonnaliserPage() {
   const { addCustomItem } = useCart()
   const { isAuthenticated } = useAuth()
-  const { platsBase, platsAccompagnement, platsSupplements } = useDishes()
+  const { publicPlatsBase, publicPlatsAccompagnement, publicPlatsSupplements } = useDishes()
   const [added, setAdded] = useState(false)
 
   // Base selection
-  const [selectedBaseId, setSelectedBaseId] = useState<string>(platsBase[0]?.id || "")
+  const [selectedBaseId, setSelectedBaseId] = useState<string>(publicPlatsBase[0]?.id || "")
   const [selectedBaseSizes, setSelectedBaseSizes] = useState<Record<string, string>>({})
 
   // Accompaniments (multiple selection with variations)
@@ -36,7 +36,40 @@ export default function PersonnaliserPage() {
 
   const [quantity, setQuantity] = useState(1)
 
-  const selectedBase = platsBase.find((p) => p.id === selectedBaseId) || platsBase[0]
+  // Si la base sélectionnée devient inactive/supprimée, on rebascule sur la première base active
+  useEffect(() => {
+    if (publicPlatsBase.length === 0) return
+    if (!selectedBaseId || !publicPlatsBase.some((p) => p.id === selectedBaseId)) {
+      setSelectedBaseId(publicPlatsBase[0].id)
+    }
+  }, [publicPlatsBase, selectedBaseId])
+
+  // Nettoyer les sélections si un accompagnement/supplément n'est plus actif
+  useEffect(() => {
+    const allowedAcc = new Set(publicPlatsAccompagnement.map((p) => p.id))
+    setSelectedAccompaniments((prev) => {
+      const next: typeof prev = {}
+      for (const [id, v] of Object.entries(prev)) {
+        if (!allowedAcc.has(id)) continue
+        next[id] = v
+      }
+      return next
+    })
+  }, [publicPlatsAccompagnement])
+
+  useEffect(() => {
+    const allowedSup = new Set(publicPlatsSupplements.map((p) => p.id))
+    setSelectedSupplements((prev) => {
+      const next: typeof prev = {}
+      for (const [id, v] of Object.entries(prev)) {
+        if (!allowedSup.has(id)) continue
+        next[id] = v
+      }
+      return next
+    })
+  }, [publicPlatsSupplements])
+
+  const selectedBase = publicPlatsBase.find((p) => p.id === selectedBaseId) || publicPlatsBase[0]
   const selectedVariationTaille = selectedBaseSizes[selectedBaseId] || "moyen"
   const selectedBaseVariation = selectedBase?.variations?.find(
     (v) => v.taille === selectedVariationTaille
@@ -48,7 +81,7 @@ export default function PersonnaliserPage() {
   const accompanimentsPrice = Object.entries(selectedAccompaniments)
     .filter(([, value]) => value.selected)
     .reduce((sum, [id, value]) => {
-      const plat = platsAccompagnement.find((p) => p.id === id)
+      const plat = publicPlatsAccompagnement.find((p) => p.id === id)
       const variation = plat?.variations?.find((v) => v.taille === value.taille)
       return sum + (variation?.prix || 0)
     }, 0)
@@ -56,7 +89,7 @@ export default function PersonnaliserPage() {
   const supplementsPrice = Object.entries(selectedSupplements)
     .filter(([, value]) => value.selected)
     .reduce((sum, [id, value]) => {
-      const plat = platsSupplements.find((p) => p.id === id)
+      const plat = publicPlatsSupplements.find((p) => p.id === id)
       const variation = plat?.variations?.find((v) => v.taille === value.taille)
       return sum + (variation?.prix || 0)
     }, 0)
@@ -100,7 +133,7 @@ export default function PersonnaliserPage() {
     const accompagnementsArray = Object.entries(selectedAccompaniments)
       .filter(([, value]) => value.selected)
       .map(([id, value]) => {
-        const plat = platsAccompagnement.find((p) => p.id === id)!
+        const plat = publicPlatsAccompagnement.find((p) => p.id === id)!
         const variation = plat.variations?.find((v) => v.taille === value.taille)!
         return { plat, variation, quantite: 1 }
       })
@@ -108,7 +141,7 @@ export default function PersonnaliserPage() {
     const supplementsArray = Object.entries(selectedSupplements)
       .filter(([, value]) => value.selected)
       .map(([id, value]) => {
-        const plat = platsSupplements.find((p) => p.id === id)!
+        const plat = publicPlatsSupplements.find((p) => p.id === id)!
         const variation = plat.variations?.find((v) => v.taille === value.taille)!
         return { plat, variation, quantite: 1 }
       })
@@ -126,7 +159,7 @@ export default function PersonnaliserPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-br from-background via-accent/20 to-background">
+    <div className="min-h-screen flex flex-col bg-linear-to-t from-background via-accent/20 to-background">
       <Header />
 
       <main className="flex-1">
@@ -163,7 +196,7 @@ export default function PersonnaliserPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {platsBase.map((base) => {
+                    {publicPlatsBase.map((base) => {
                       const isSelected = selectedBaseId === base.id
                       const currentSize = selectedBaseSizes[base.id] || "moyen"
 
@@ -183,7 +216,7 @@ export default function PersonnaliserPage() {
                               fill
                               className="object-cover transition-transform duration-300 group-hover:scale-110"
                             />
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
+                            <div className="absolute inset-0 bg-linear-to-t from-black/60 via-black/20 to-transparent" />
                             <div className="absolute top-3 left-3">
                               <Checkbox
                                 checked={isSelected}
@@ -235,7 +268,7 @@ export default function PersonnaliserPage() {
                     })}
                   </div>
 
-                  <div className="flex items-center justify-between mt-6 p-5 bg-gradient-to-r from-primary/5 to-primary/10 border-l-4 border-primary rounded-r-lg">
+                  <div className="flex items-center justify-between mt-6 p-5 bg-linear-to-t from-primary/5 to-primary/10 border-l-4 border-primary rounded-r-lg">
                     <div className="flex-1">
                       <span className="text-sm font-medium text-muted-foreground block mb-1">Base sélectionnée</span>
                       <div className="flex items-center gap-2">
@@ -267,7 +300,7 @@ export default function PersonnaliserPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {platsAccompagnement.map((item) => {
+                    {publicPlatsAccompagnement.map((item) => {
                       const isSelected = selectedAccompaniments[item.id]?.selected
                       const selectedTaille = selectedAccompaniments[item.id]?.taille || "moyen"
 
@@ -287,7 +320,7 @@ export default function PersonnaliserPage() {
                               fill
                               className="object-cover transition-transform duration-300 group-hover:scale-110"
                             />
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
+                            <div className="absolute inset-0 bg-linear-to-t from-black/60 via-black/20 to-transparent" />
                             <div className="absolute top-3 left-3">
                               <Checkbox
                                 checked={isSelected}
@@ -351,7 +384,7 @@ export default function PersonnaliserPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {platsSupplements.map((item) => {
+                    {publicPlatsSupplements.map((item) => {
                       const isSelected = selectedSupplements[item.id]?.selected
                       const selectedTaille = selectedSupplements[item.id]?.taille || "moyen"
 
@@ -371,7 +404,7 @@ export default function PersonnaliserPage() {
                               fill
                               className="object-cover transition-transform duration-300 group-hover:scale-110"
                             />
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
+                            <div className="absolute inset-0 bg-linear-to-t from-black/60 via-black/20 to-transparent" />
                             <div className="absolute top-2 left-2">
                               <Checkbox
                                 checked={isSelected}
@@ -422,7 +455,7 @@ export default function PersonnaliserPage() {
             {/* Recap Sidebar */}
             <div className="lg:col-span-1">
               <Card className="sticky top-24 border-2 shadow-xl">
-                <CardHeader className="bg-gradient-to-br from-primary/10 to-primary/5 border-b-2">
+                <CardHeader className="bg-linear-to-br from-primary/10 to-primary/5 border-b-2">
                   <CardTitle className="text-2xl flex items-center gap-2">
                     <ShoppingCart className="w-5 h-5 text-primary" />
                     Récapitulatif
@@ -437,7 +470,7 @@ export default function PersonnaliserPage() {
                       height={200}
                       className="w-full h-44 object-cover"
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+                    <div className="absolute inset-0 bg-linear-to-t from-black/50 to-transparent" />
                   </div>
 
                   <div className="space-y-4">
@@ -461,7 +494,7 @@ export default function PersonnaliserPage() {
                           {Object.entries(selectedAccompaniments)
                             .filter(([, v]) => v.selected)
                             .map(([id, value]) => {
-                              const plat = platsAccompagnement.find((p) => p.id === id)
+                              const plat = publicPlatsAccompagnement.find((p) => p.id === id)
                               const variation = plat?.variations?.find((v) => v.taille === value.taille)
                               return (
                                 <div key={id} className="flex justify-between text-sm">
@@ -483,7 +516,7 @@ export default function PersonnaliserPage() {
                           {Object.entries(selectedSupplements)
                             .filter(([, v]) => v.selected)
                             .map(([id, value]) => {
-                              const plat = platsSupplements.find((p) => p.id === id)
+                              const plat = publicPlatsSupplements.find((p) => p.id === id)
                               const variation = plat?.variations?.find((v) => v.taille === value.taille)
                               return (
                                 <div key={id} className="flex justify-between text-sm">
