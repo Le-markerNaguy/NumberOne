@@ -440,18 +440,22 @@ export const platsApi = {
   },
 
   async update(id: string, data: Partial<Plat>): Promise<ApiResponse<PlatResponse>> {
+    const updatePayload: Record<string, any> = {
+      nom: data.nom,
+      description: data.description,
+      type: data.type,
+      prix_base: data.prix_base,
+      categorie: data.categorie,
+      image: data.image,
+      statut: data.statut,
+    }
+    if (data.variations !== undefined) {
+      updatePayload.variations = data.variations
+    }
+
     const { data: updated, error } = await supabase
       .from("plats")
-      .update({
-        nom: data.nom,
-        description: data.description,
-        type: data.type,
-        prix_base: data.prix_base,
-        categorie: data.categorie,
-        image: data.image,
-        statut: data.statut,
-        variations: data.variations ?? null,
-      })
+      .update(updatePayload)
       .eq("id", id)
       .select("*")
       .maybeSingle()
@@ -478,11 +482,12 @@ export const platsApi = {
 
 // Commandes API (Supabase)
 export const commandesApi = {
-  async getAll(): Promise<ApiResponse<CommandeResponse[]>> {
+  async getAll(limit = 200): Promise<ApiResponse<CommandeResponse[]>> {
     const { data, error } = await supabase
       .from("commandes")
       .select("*")
       .order("date_commande", { ascending: false })
+      .limit(limit)
 
     if (error) {
       console.error("Erreur Supabase commandes.getAll:", error)
@@ -493,7 +498,7 @@ export const commandesApi = {
     return { success: true, data: rows }
   },
 
-  async getMine(): Promise<ApiResponse<CommandeResponse[]>> {
+  async getMine(limit = 200): Promise<ApiResponse<CommandeResponse[]>> {
     // Pour l'instant, cette méthode renvoie simplement les commandes triées.
     // Tu pourras la filtrer par client (ex: colonne client_id) quand tu auras
     // branché Supabase Auth côté clients.
@@ -501,6 +506,7 @@ export const commandesApi = {
       .from("commandes")
       .select("*")
       .order("date_commande", { ascending: false })
+      .limit(limit)
 
     if (error) {
       console.error("Erreur Supabase commandes.getMine:", error)
@@ -631,20 +637,27 @@ export const statsApi = {
 
       // Revenus de la semaine (simple agrégat par jour à partir des commandes)
       const startOfWeek = new Date(today)
+      startOfWeek.setHours(0, 0, 0, 0)
       startOfWeek.setDate(today.getDate() - 6)
+      const endOfWeek = new Date(today)
+      endOfWeek.setHours(23, 59, 59, 999)
+
       const { data: commandesWeek, error: weekError } = await supabase
         .from("commandes")
         .select("date_commande,total")
         .gte("date_commande", startOfWeek.toISOString())
+        .lte("date_commande", endOfWeek.toISOString())
 
       if (weekError) throw weekError
 
       const jours = ["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"]
       const revenusMap: Record<string, number> = {}
+
       ;(commandesWeek || []).forEach((c: any) => {
         const d = new Date(c.date_commande)
+        if (Number.isNaN(d.getTime())) return
         const label = jours[d.getDay()]
-        revenusMap[label] = (revenusMap[label] || 0) + (c.total || 0)
+        revenusMap[label] = (revenusMap[label] || 0) + (Number(c.total) || 0)
       })
 
       const revenus_semaine = jours.map((jour) => ({
@@ -779,14 +792,23 @@ export const adminsApi = {
   },
 
   async delete(id: string): Promise<ApiResponse<null>> {
-    const { error } = await supabase.from("admins").delete().eq("id", id)
+    try {
+      const response = await fetch("/api/admin/delete", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ adminId: id }),
+      })
 
-    if (error) {
-      console.error("Erreur Supabase admins.delete:", error)
+      if (!response.ok) {
+        const errorData = await response.json()
+        return { success: false, error: errorData.error || "Erreur serveur" }
+      }
+
+      return { success: true }
+    } catch (error) {
+      console.error("Erreur adminsApi.delete:", error)
       return { success: false, error: "Impossible de supprimer l'administrateur" }
     }
-
-    return { success: true }
   },
 
   async login(email: string, password: string): Promise<ApiResponse<Admin>> {

@@ -14,6 +14,7 @@ import { useRouter } from "next/navigation"
 import { useCart } from "@/contexts/cart-context"
 import { useAuth } from "@/contexts/auth-context"
 import { VILLES_GABON, QUARTIERS_LIBREVILLE, MODES_PAIEMENT } from "@/lib/data"
+import { paymentService } from "@/lib/payment-service"
 import { commandesApi } from "@/lib/api"
 
 export default function CommandePage() {
@@ -127,7 +128,13 @@ export default function CommandePage() {
       const lignes: any[] = []
 
       items.forEach((item) => {
-        if (item.type === "simple" && item.plat && item.variation) {
+        if (item.type === "simple" && item.plat) {
+          const variation = item.variation || {
+            id: `var-${item.plat.id}-default`,
+            id_plat: item.plat.id,
+            taille: "petit",
+            prix: item.plat.prix_base,
+          }
           lignes.push({
             id: item.id,
             id_plat: item.plat.id,
@@ -136,7 +143,7 @@ export default function CommandePage() {
             quantite: item.quantite,
             prix_unitaire: item.prixUnitaire,
             prix_total: item.prixTotal,
-            taille: item.variation.taille,
+            taille: variation.taille,
           })
         } else if (item.type === "personnalise" && item.personnalisation) {
           const baseVar = item.personnalisation.base.variation
@@ -189,43 +196,106 @@ export default function CommandePage() {
         }
       })
 
-      const paiement =
-        selectedPayment === "livraison"
-          ? {
-              id: `pay-${Date.now()}`,
-              mode: "livraison",
-              montant: total,
-              statut: "en_attente",
-              montant_en_especes: Number(cashAmount),
-            }
-          : {
-              id: `pay-${Date.now()}`,
-              mode: selectedPayment as "airtel_money" | "moov_money" | "livraison",
-              montant: total,
-              statut: "en_attente",
-            }
+      // Handle payment based on method
+      let paiement
 
-      const res = await commandesApi.create({
-        client,
-        lignes,
-        sous_total: sousTotal,
-        frais_livraison: fraisLivraison,
-        tva: 0,
-        total,
-        adresse_livraison: formData.address,
-        commune: formData.quartier || "",
-        ville: formData.city || "Libreville",
-        instructions: formData.instructions,
-        paiement,
-      })
+      if (selectedPayment === "livraison") {
+        paiement = {
+          id: `pay-${Date.now()}`,
+          mode: "livraison",
+          montant: total,
+          statut: "en_attente",
+          montant_en_especes: Number(cashAmount),
+        }
+      } else {
+        // For mobile money payments, create order first, then process payment
+        const tempPaiement = {
+          id: `pay-${Date.now()}`,
+          mode: selectedPayment as "airtel_money" | "moov_money",
+          montant: total,
+          statut: "en_attente" as const,
+        }
 
-      if (!res.success || !res.data) {
-        setError(res.error || "Impossible de créer la commande. Veuillez réessayer.")
-        setIsSubmitting(false)
-        return
+        // Create order with pending payment
+        const orderRes = await commandesApi.create({
+          client,
+          lignes,
+          sous_total: sousTotal,
+          frais_livraison: fraisLivraison,
+          tva: 0,
+          total,
+          adresse_livraison: formData.address,
+          commune: formData.quartier || "",
+          ville: formData.city || "Libreville",
+          instructions: formData.instructions,
+          paiement: tempPaiement,
+        })
+
+        if (!orderRes.success || !orderRes.data) {
+          setError(orderRes.error || "Impossible de créer la commande. Veuillez réessayer.")
+          setIsSubmitting(false)
+          return
+        }
+
+        // Process mobile money payment
+        const paymentResult = await paymentService.processPayment(
+          selectedPayment as "airtel_money" | "moov_money",
+          {
+            amount: total,
+            phoneNumber: client.telephone,
+            orderId: orderRes.data.id,
+            description: `Commande ${orderRes.data.id}`,
+          }
+        )
+
+        if (!paymentResult.success) {
+          // Payment failed, but order is created - user can retry payment later
+          setError(`Commande créée mais paiement échoué: ${paymentResult.error}. Vous pouvez réessayer le paiement.`)
+          setCreatedOrderId(orderRes.data.id)
+          setIsSubmitting(false)
+          setOrderComplete(true)
+          clearCart()
+          return
+        }
+
+        // Update payment with transaction details
+        paiement = {
+          ...tempPaiement,
+          transaction_id: paymentResult.transactionId,
+          statut: "en_cours" as const,
+        }
+
+        // Update order with payment transaction details
+        await commandesApi.update(orderRes.data.id, {
+          paiement,
+        })
       }
 
-      setCreatedOrderId(res.data.id)
+      // For cash on delivery, create order directly
+      if (selectedPayment === "livraison") {
+        const res = await commandesApi.create({
+          client,
+          lignes,
+          sous_total: sousTotal,
+          frais_livraison: fraisLivraison,
+          tva: 0,
+          total,
+          adresse_livraison: formData.address,
+          commune: formData.quartier || "",
+          ville: formData.city || "Libreville",
+          instructions: formData.instructions,
+          paiement,
+        })
+
+        if (!res.success || !res.data) {
+          setError(res.error || "Impossible de créer la commande. Veuillez réessayer.")
+          setIsSubmitting(false)
+          return
+        }
+
+        setCreatedOrderId(res.data.id)
+      }
+
       setIsSubmitting(false)
       setOrderComplete(true)
       clearCart()

@@ -1,15 +1,5 @@
 // Types
-import { Plat , Variation} from "./types"
-
-
-
-export interface Client {
-  id: string
-  nom_complet: string
-  telephone: string
-  email?: string
-  date_inscription: string
-}
+import { Plat , Variation, Client} from "./types"
 
 // Constants
 export const SUJETS_CONTACT = [
