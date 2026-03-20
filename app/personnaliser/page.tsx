@@ -13,7 +13,7 @@ import { useCart } from "@/contexts/cart-context"
 import { useAuth } from "@/contexts/auth-context"
 import { useDishes } from "@/contexts/dishes-context"
 import Link from "next/link"
-import type { Plat, Variation } from "@/lib/data"
+import type { Plat, Variation } from "@/lib/types"
 
 export default function PersonnaliserPage() {
   const { addCustomItem } = useCart()
@@ -95,7 +95,7 @@ export default function PersonnaliserPage() {
     }, 0)
 
   const subtotal = (basePrice + accompanimentsPrice + supplementsPrice) * quantity
-  const tva = subtotal * 0.16
+  const tva = 0 // TVA supprimée selon les nouvelles exigences
   const total = subtotal + tva
 
   const toggleAccompaniment = (id: string) => {
@@ -535,10 +535,6 @@ export default function PersonnaliserPage() {
                       <div className="flex justify-between text-sm">
                         <span className="text-muted-foreground">Sous-total</span>
                         <span className="font-semibold">{subtotal.toFixed(0)}f</span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">TVA (16%)</span>
-                        <span className="font-semibold">{tva.toFixed(0)}f</span>
                       </div>
                       <div className="flex justify-between items-center pt-3 border-t-2 border-primary/20">
                         <span className="font-bold text-lg">Total</span>

@@ -55,10 +55,15 @@ export default function AdminDashboard() {
           setStats(cards)
 
           // Revenue chart data
-          const revenus = d.revenus_semaine || []
-          const max = Math.max(...revenus.map((r: any) => r.montant), 1)
+          let revenus = d.revenus_semaine || []
+          if (!revenus || revenus.length === 0) {
+            const jours = ["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"]
+            revenus = jours.map((jour) => ({ jour, montant: 0 }))
+          }
+
+          const max = Math.max(...revenus.map((r: any) => Number(r.montant) || 0), 1)
           setRevenueData(
-            revenus.map((r: any) => ({ day: r.jour.substring(0, 3), value: Math.round((r.montant / max) * 100) })),
+            revenus.map((r: any) => ({ day: r.jour.substring(0, 3), value: Math.round(((Number(r.montant) || 0) / max) * 100) })),
           )
 
           // Popular dishes
