@@ -38,7 +38,7 @@ const steps = [
 ]
 
 export default function HomePage() {
-  const { popularDishes, isLoading } = useDishes()
+  const { publicPopularDishes, isLoading } = useDishes()
   const { addSimpleItem } = useCart()
 
   const handleAddToCart = (dish: any) => {
@@ -104,7 +104,7 @@ export default function HomePage() {
         <PopularDishesSection
           title="Plats populaires"
           subtitle="Découvrez nos plats les plus commandés, tous personnalisables à votre goût"
-          dishes={popularDishes}
+          dishes={publicPopularDishes}
           onAddToCart={handleAddToCart}
         />
       )}
