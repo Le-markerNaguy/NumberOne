@@ -91,6 +91,8 @@ export default function AdminPlats() {
   const handleDeleteDish = (id: string) => {
     deletePlat(id)
     setDeleteConfirm(null)
+    // Réinitialise la pagination après suppression pour éviter que la pagination ne soit vide
+    setCurrentPage(1)
   }
 
   const [formData, setFormData] = useState({

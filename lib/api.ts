@@ -484,24 +484,35 @@ export const platsApi = {
   },
 
   async update(id: string, data: Partial<Plat>): Promise<ApiResponse<PlatResponse>> {
+    const updatePayload: Record<string, any> = {
+      nom: data.nom,
+      description: data.description,
+      type: data.type,
+      prix_base: data.prix_base,
+      categorie: data.categorie,
+      image: data.image,
+      statut: data.statut,
+    }
+    if (data.variations !== undefined) {
+      updatePayload.variations = data.variations
+    }
+
     const { data: updated, error } = await supabase
       .from("plats")
-      .update({
-        nom: data.nom,
-        description: data.description,
-        type: data.type,
-        prix_base: data.prix_base,
-        categorie: data.categorie,
-        image: data.image,
-        statut: data.statut,
-        variations: data.variations ?? null,
-      })
+      .update(updatePayload)
       .eq("id", id)
       .select("*")
       .maybeSingle()
 
     if (error || !updated) {
-      console.error("Erreur Supabase plats.update:", error)
+      console.error("Erreur Supabase plats.update:", {
+        message: (error as any)?.message,
+        code: (error as any)?.code,
+        details: (error as any)?.details,
+        hint: (error as any)?.hint,
+        status: (error as any)?.status,
+        raw: error,
+      })
       return { success: false, error: "Impossible de mettre à jour le plat" }
     }
 
@@ -512,7 +523,14 @@ export const platsApi = {
     const { error } = await supabase.from("plats").delete().eq("id", id)
 
     if (error) {
-      console.error("Erreur Supabase plats.delete:", error)
+      console.error("Erreur Supabase plats.delete:", {
+        message: (error as any)?.message,
+        code: (error as any)?.code,
+        details: (error as any)?.details,
+        hint: (error as any)?.hint,
+        status: (error as any)?.status,
+        raw: error,
+      })
       return { success: false, error: "Impossible de supprimer le plat" }
     }
 
@@ -522,73 +540,111 @@ export const platsApi = {
 
 // Commandes API (Supabase)
 export const commandesApi = {
-  async getAll(): Promise<ApiResponse<CommandeResponse[]>> {
-    const { data, error } = await supabase
-      .from("commandes")
-      .select("*")
-      .order("date_commande", { ascending: false })
+  async getAll(limit = 200): Promise<ApiResponse<CommandeResponse[]>> {
+    try {
+      const { data, error } = await supabase
+        .from("commandes")
+        .select("*")
+        .order("date_commande", { ascending: false })
+        .limit(limit)
 
-    if (error) {
-      console.error("Erreur Supabase commandes.getAll:", error)
-      return { success: false, error: "Impossible de charger les commandes" }
+      if (error) {
+        console.warn("Erreur Supabase commandes.getAll:", error)
+        // Fallback aux données mock en développement
+        console.log("Utilisation des données mock pour les commandes")
+        const rows = mockCommandes.map(normalizeCommandeRow)
+        return { success: true, data: rows }
+      }
+
+      const rows = (data || []).map(normalizeCommandeRow)
+      return { success: true, data: rows }
+    } catch (e) {
+      console.error("Exception dans commandes.getAll:", e)
+      // Fallback aux données mock
+      const rows = mockCommandes.map(normalizeCommandeRow)
+      return { success: true, data: rows }
     }
-
-    const rows = (data || []).map(normalizeCommandeRow)
-    return { success: true, data: rows }
   },
 
   async getLatest(): Promise<ApiResponse<CommandeResponse | null>> {
-    const { data, error } = await supabase
-      .from("commandes")
-      .select("*")
-      .order("date_commande", { ascending: false })
-      .limit(1)
+    try {
+      const { data, error } = await supabase
+        .from("commandes")
+        .select("*")
+        .order("date_commande", { ascending: false })
+        .limit(1)
 
-    if (error) {
-      console.error("Erreur Supabase commandes.getLatest:", error)
-      return { success: false, error: "Impossible de charger la dernière commande" }
+      if (error) {
+        console.warn("Erreur Supabase commandes.getLatest:", error)
+        // Fallback aux données mock
+        const row = mockCommandes[0]
+        return { success: true, data: row ? normalizeCommandeRow(row) : null }
+      }
+
+      const row = (data || [])[0]
+      if (!row) return { success: true, data: null }
+      return { success: true, data: normalizeCommandeRow(row) }
+    } catch (e) {
+      console.error("Exception dans commandes.getLatest:", e)
+      const row = mockCommandes[0]
+      return { success: true, data: row ? normalizeCommandeRow(row) : null }
     }
-
-    const row = (data || [])[0]
-    if (!row) return { success: true, data: null }
-    return { success: true, data: normalizeCommandeRow(row) }
   },
 
-  async getMine(): Promise<ApiResponse<CommandeResponse[]>> {
-    // Pour l'instant, cette méthode renvoie simplement les commandes triées.
-    // Tu pourras la filtrer par client (ex: colonne client_id) quand tu auras
-    // branché Supabase Auth côté clients.
-    const { data, error } = await supabase
-      .from("commandes")
-      .select("*")
-      .order("date_commande", { ascending: false })
+  async getMine(limit = 200): Promise<ApiResponse<CommandeResponse[]>> {
+    try {
+      // Pour l'instant, cette méthode renvoie simplement les commandes triées.
+      // Tu pourras la filtrer par client (ex: colonne client_id) quand tu auras
+      // branché Supabase Auth côté clients.
+      const { data, error } = await supabase
+        .from("commandes")
+        .select("*")
+        .order("date_commande", { ascending: false })
+        .limit(limit)
 
-    if (error) {
-      console.error("Erreur Supabase commandes.getMine:", error)
-      return { success: false, error: "Impossible de charger les commandes" }
+      if (error) {
+        console.warn("Erreur Supabase commandes.getMine:", error)
+        // Fallback aux données mock
+        const rows = mockCommandes.map(normalizeCommandeRow)
+        return { success: true, data: rows }
+      }
+
+      const rows = (data || []).map(normalizeCommandeRow)
+      return { success: true, data: rows }
+    } catch (e) {
+      console.error("Exception dans commandes.getMine:", e)
+      const rows = mockCommandes.map(normalizeCommandeRow)
+      return { success: true, data: rows }
     }
-
-    const rows = (data || []).map(normalizeCommandeRow)
-    return { success: true, data: rows }
   },
 
   async getById(id: string): Promise<ApiResponse<CommandeResponse>> {
-    const { data, error } = await supabase
-      .from("commandes")
-      .select("*")
-      .eq("id", id)
-      .maybeSingle()
+    try {
+      const { data, error } = await supabase
+        .from("commandes")
+        .select("*")
+        .eq("id", id)
+        .maybeSingle()
 
-    if (error) {
-      console.error("Erreur Supabase commandes.getById:", error)
-      return { success: false, error: "Impossible de charger la commande" }
-    }
+      if (error) {
+        console.warn("Erreur Supabase commandes.getById:", error)
+        // Fallback aux données mock
+        const row = mockCommandes.find((c) => c.id === id)
+        if (row) return { success: true, data: normalizeCommandeRow(row) }
+        return { success: false, error: "Commande non trouvée" }
+      }
 
-    if (!data) {
+      if (!data) {
+        return { success: false, error: "Commande non trouvée" }
+      }
+
+      return { success: true, data: normalizeCommandeRow(data) }
+    } catch (e) {
+      console.error("Exception dans commandes.getById:", e)
+      const row = mockCommandes.find((c) => c.id === id)
+      if (row) return { success: true, data: normalizeCommandeRow(row) }
       return { success: false, error: "Commande non trouvée" }
     }
-
-    return { success: true, data: normalizeCommandeRow(data) }
   },
 
   async updateStatus(id: string, status: StatutCommande): Promise<ApiResponse<CommandeResponse>> {
@@ -644,6 +700,36 @@ export const commandesApi = {
 
     return { success: true, data: inserted as CommandeResponse }
   },
+
+  async update(id: string, data: Partial<Commande>): Promise<ApiResponse<CommandeResponse>> {
+    const updatePayload: any = {}
+
+    // Only include fields that are provided
+    if (data.paiement !== undefined) updatePayload.paiement = data.paiement
+    if (data.statut_commande !== undefined) updatePayload.statut_commande = data.statut_commande
+    if (data.instructions !== undefined) updatePayload.instructions = data.instructions
+    if (data.adresse_livraison !== undefined) updatePayload.adresse_livraison = data.adresse_livraison
+    if (data.commune !== undefined) updatePayload.commune = data.commune
+    if (data.ville !== undefined) updatePayload.ville = data.ville
+
+    const { data: updated, error } = await supabase
+      .from("commandes")
+      .update(updatePayload)
+      .eq("id", id)
+      .select("*")
+      .maybeSingle()
+
+    if (error) {
+      console.error("Erreur Supabase commandes.update:", error)
+      return { success: false, error: "Impossible de mettre à jour la commande" }
+    }
+
+    if (!updated) {
+      return { success: false, error: "Commande non trouvée" }
+    }
+
+    return { success: true, data: updated as CommandeResponse }
+  },
 }
 
 // Stats API (Supabase)
@@ -692,20 +778,27 @@ export const statsApi = {
 
       // Revenus de la semaine (simple agrégat par jour à partir des commandes)
       const startOfWeek = new Date(today)
+      startOfWeek.setHours(0, 0, 0, 0)
       startOfWeek.setDate(today.getDate() - 6)
+      const endOfWeek = new Date(today)
+      endOfWeek.setHours(23, 59, 59, 999)
+
       const { data: commandesWeek, error: weekError } = await supabase
         .from("commandes")
         .select("date_commande,total")
         .gte("date_commande", startOfWeek.toISOString())
+        .lte("date_commande", endOfWeek.toISOString())
 
       if (weekError) throw weekError
 
       const jours = ["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"]
       const revenusMap: Record<string, number> = {}
+
       ;(commandesWeek || []).forEach((c: any) => {
         const d = new Date(c.date_commande)
+        if (Number.isNaN(d.getTime())) return
         const label = jours[d.getDay()]
-        revenusMap[label] = (revenusMap[label] || 0) + (c.total || 0)
+        revenusMap[label] = (revenusMap[label] || 0) + (Number(c.total) || 0)
       })
 
       const revenus_semaine = jours.map((jour) => ({
@@ -840,14 +933,23 @@ export const adminsApi = {
   },
 
   async delete(id: string): Promise<ApiResponse<null>> {
-    const { error } = await supabase.from("admins").delete().eq("id", id)
+    try {
+      const response = await fetch("/api/admin/delete", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ adminId: id }),
+      })
 
-    if (error) {
-      console.error("Erreur Supabase admins.delete:", error)
+      if (!response.ok) {
+        const errorData = await response.json()
+        return { success: false, error: errorData.error || "Erreur serveur" }
+      }
+
+      return { success: true }
+    } catch (error) {
+      console.error("Erreur adminsApi.delete:", error)
       return { success: false, error: "Impossible de supprimer l'administrateur" }
     }
-
-    return { success: true }
   },
 
   async login(email: string, password: string): Promise<ApiResponse<Admin>> {

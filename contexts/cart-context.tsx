@@ -94,7 +94,16 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const total = sousTotal + effectiveFraisLivraison
 
   const addSimpleItem = (plat: Plat, variation?: Variation, quantite = 1) => {
-    const selectedVariation = variation || plat.variations?.[1] || plat.variations?.[0]
+    const selectedVariation =
+      variation ||
+      plat.variations?.[1] ||
+      plat.variations?.[0] ||
+      {
+        id: `var-${plat.id}-default`,
+        id_plat: plat.id,
+        taille: "petit",
+        prix: plat.prix_base,
+      }
     const prixUnitaire = selectedVariation?.prix || plat.prix_base
 
     setItems((prev) => {
@@ -175,6 +184,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const clearCart = () => {
     setItems([])
     localStorage.removeItem("cube_cart")
+    // Envoie un événement pour notifier que le panier a été vidé
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("cartCleared", { detail: { timestamp: Date.now() } }))
+    }
   }
 
   return (

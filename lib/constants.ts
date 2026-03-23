@@ -10,6 +10,6 @@ export const STATUTS_COMMANDE = {
   [OrderStatus.CANCELLED]: { label: "Annulée", color: "bg-red-100 text-red-700" },
 }
 
-export const TAUX_TVA = 0.16 // 16%
+
 
 export const FRAIS_LIVRAISON_DEFAUT = 2000

@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { commandesApi, type CommandeResponse } from "@/lib/api"
 import { useAuth } from "@/contexts/auth-context"
+import { useDishes } from "@/contexts/dishes-context"
 import { STATUTS_COMMANDE } from "@/lib/constants"
 import { OrderStatus } from "@/lib/types"
 
@@ -19,6 +20,8 @@ export default function MesCommandesDetailPage() {
   const [order, setOrder] = useState<CommandeResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
+  const { platsMenu, platsBase, platsAccompagnement, platsSupplements } = useDishes()
+  const allPlats = [...platsMenu, ...platsBase, ...platsAccompagnement, ...platsSupplements]
 
   const id = params?.id
 
@@ -163,18 +166,33 @@ export default function MesCommandesDetailPage() {
                   <CardTitle>Articles ({order.lignes.length})</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  {order.lignes.map((l) => (
-                    <div key={l.id} className="flex items-start justify-between gap-4 border-b last:border-0 pb-3 last:pb-0">
-                      <div className="min-w-0">
-                        <p className="font-medium truncate">{l.nom_plat}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {l.quantite} × {Number(l.prix_unitaire).toFixed(0)} f
-                          {l.taille ? ` • Taille: ${l.taille}` : ""}
-                        </p>
+                  {order.lignes.map((l) => {
+                    const associatedPlat = allPlats.find((p) => p.id === l.id_plat)
+                    return (
+                      <div key={l.id} className="flex items-center justify-between gap-4 border-b last:border-0 pb-3 last:pb-0">
+                        <div className="flex items-start gap-3 min-w-0">
+                          <div className="w-12 h-12 rounded-lg overflow-hidden">
+                            <img
+                              src={associatedPlat?.image || l.image_plat || "/placeholder.svg"}
+                              alt={associatedPlat?.nom || l.nom_plat || "Plat"}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="font-medium truncate">{associatedPlat?.nom || l.nom_plat}</p>
+                            {associatedPlat?.categorie && (
+                              <p className="text-xs text-gray-500">{associatedPlat.categorie}</p>
+                            )}
+                            <p className="text-sm text-muted-foreground">
+                              {l.quantite} × {Number(l.prix_unitaire).toFixed(0)} f
+                              {l.taille ? ` • Taille: ${l.taille}` : ""}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="font-semibold">{Number(l.prix_total).toFixed(0)} f</div>
                       </div>
-                      <div className="font-semibold">{Number(l.prix_total).toFixed(0)} f</div>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </CardContent>
               </Card>
             </div>

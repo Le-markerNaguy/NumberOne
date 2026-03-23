@@ -169,7 +169,7 @@ export default function AdminClients() {
                       </span>
                     </td>
                     <td className="p-4 hidden lg:table-cell font-semibold text-gray-900">
-                      {client.total_depense.toLocaleString()} f
+                      {(client.total_depense ?? 0).toLocaleString()} f
                     </td>
                     <td className="p-4">
                       <Button
@@ -275,7 +275,7 @@ export default function AdminClients() {
                   <p className="text-gray-500 text-sm">Commandes</p>
                 </div>
                 <div className="bg-gray-50 p-4 rounded-lg text-center">
-                  <p className="text-3xl font-bold text-green-500">{selectedClient.total_depense.toLocaleString()}f</p>
+                  <p className="text-3xl font-bold text-green-500">{(selectedClient.total_depense ?? 0).toLocaleString()} f</p>
                   <p className="text-gray-500 text-sm">Total depense</p>
                 </div>
               </div>

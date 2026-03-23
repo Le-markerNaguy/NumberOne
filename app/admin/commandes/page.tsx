@@ -1,7 +1,8 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { useAuth } from "@/contexts/auth-context"
+import { useDishes } from "@/contexts/dishes-context"
 import { useToast } from "@/hooks/use-toast"
 import { Search, ChevronLeft, ChevronRight, Eye, X } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
@@ -11,6 +12,7 @@ import { commandesApi, type CommandeResponse } from "@/lib/api"
 import { OrderStatus } from "@/lib/types"
 import Image from "next/image"
 import { ADMIN_PERMISSIONS } from "@/lib/types"
+import { playBellSound } from "@/lib/sound-utils"
 
 const statusLabels: Record<OrderStatus, string> = {
   [OrderStatus.PENDING]: "En attente",
@@ -77,6 +79,7 @@ export default function AdminCommandes() {
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedOrder, setSelectedOrder] = useState<CommandeResponse | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
+  const [isLoadingOrders, setIsLoadingOrders] = useState(true)
   const ordersPerPage = 6
 
   const [pollingEnabled, setPollingEnabled] = useState(false)
@@ -94,22 +97,25 @@ export default function AdminCommandes() {
     { label: "Livrees aujourd'hui", value: orders.filter((o) => o.statut_commande === OrderStatus.DELIVERED).length },
   ]
 
-  const filters = [
-    { label: "Toutes", count: orders.length },
-    { label: "Nouvelles", count: orders.filter((o) => o.statut_commande === OrderStatus.PENDING).length },
-    {
-      label: "En cours",
-      count: orders.filter((o) =>
-        [
-          OrderStatus.CONFIRMED,
-          OrderStatus.PREPARING,
-          OrderStatus.READY,
-          OrderStatus.DELIVERING,
-        ].includes(o.statut_commande as OrderStatus),
-      ).length,
-    },
-    { label: "Livrees", count: orders.filter((o) => o.statut_commande === OrderStatus.DELIVERED).length },
-  ]
+  const filters = useMemo(
+    () => [
+      { label: "Toutes", count: orders.length },
+      { label: "Nouvelles", count: orders.filter((o) => o.statut_commande === OrderStatus.PENDING).length },
+      {
+        label: "En cours",
+        count: orders.filter((o) =>
+          [
+            OrderStatus.CONFIRMED,
+            OrderStatus.PREPARING,
+            OrderStatus.READY,
+            OrderStatus.DELIVERING,
+          ].includes(o.statut_commande as OrderStatus),
+        ).length,
+      },
+      { label: "Livrees", count: orders.filter((o) => o.statut_commande === OrderStatus.DELIVERED).length },
+    ],
+    [orders],
+  )
 
   const filteredOrders = orders.filter((order) => {
     const matchesSearch =
@@ -135,17 +141,52 @@ export default function AdminCommandes() {
 
   const { hasPermission } = useAuth()
   const { toast } = useToast()
+  const { platsMenu, platsBase, platsAccompagnement, platsSupplements } = useDishes()
+  const allPlats = [...platsMenu, ...platsBase, ...platsAccompagnement, ...platsSupplements]
 
-  const updateOrderStatus = async (orderId: string, newStatus: OrderStatus) => {
-   
-     // Vérifier la permission applicative
-  if (!hasPermission(ADMIN_PERMISSIONS.ORDERS_UPDATE)) {
-    toast({ title: "Accès refusé", description: "Vous n'avez pas la permission de modifier les commandes." })
-    return
+  const loadOrders = async () => {
+    setIsLoadingOrders(true)
+    try {
+      const res = await commandesApi.getAll(150)
+      if (res.success && res.data) {
+        setOrders(
+          res.data
+            .filter(
+              (o) =>
+                o.statut_commande !== OrderStatus.DELIVERED &&
+                o.statut_commande !== OrderStatus.CANCELLED,
+            )
+            .sort((a, b) =>
+              new Date(b.date_commande).getTime() - new Date(a.date_commande).getTime(),
+            ),
+        )
+      }
+    } catch (e) {
+      console.error("Failed to load commandes:", e)
+    } finally {
+      setIsLoadingOrders(false)
+    }
   }
 
-    try {
+  const statusPermissionMap: Record<OrderStatus, string> = {
+    [OrderStatus.CONFIRMED]: ADMIN_PERMISSIONS.ORDERS_STATUS_CONFIRMED,
+    [OrderStatus.PREPARING]: ADMIN_PERMISSIONS.ORDERS_STATUS_PREPARING,
+    [OrderStatus.READY]: ADMIN_PERMISSIONS.ORDERS_STATUS_READY,
+    [OrderStatus.DELIVERING]: ADMIN_PERMISSIONS.ORDERS_STATUS_DELIVERING,
+    [OrderStatus.DELIVERED]: ADMIN_PERMISSIONS.ORDERS_STATUS_DELIVERED,
+    [OrderStatus.CANCELLED]: ADMIN_PERMISSIONS.ORDERS_STATUS_CANCELLED,
+    [OrderStatus.PENDING]: ADMIN_PERMISSIONS.ORDERS_UPDATE,
+  }
 
+  const updateOrderStatus = async (orderId: string, newStatus: OrderStatus) => {
+    // Vérifier la permission applicative
+    const requiredPerm = statusPermissionMap[newStatus] || ADMIN_PERMISSIONS.ORDERS_UPDATE
+    if (!hasPermission(requiredPerm) && !hasPermission(ADMIN_PERMISSIONS.ORDERS_UPDATE)) {
+      toast({ title: "Accès refusé", description: "Vous n'avez pas la permission de modifier ce statut." })
+      return
+    }
+
+    try {
       const res = await commandesApi.updateStatus(orderId, newStatus as any)
       if (res.success && res.data) {
         setOrders((prev) => prev.map((o) => (o.id === orderId ? { ...o, statut_commande: newStatus as any } : o)))
@@ -159,19 +200,6 @@ export default function AdminCommandes() {
     } catch (e) {
       console.error("Failed to update order status:", e)
     }
-  }
-
-  const loadOrders = async () => {
-    const res = await commandesApi.getAll()
-    if (!res.success) return
-
-    const data = res.data || []
-    // Ne pas afficher les commandes livrées ou annulées dans la liste principale
-    setOrders(
-      data.filter(
-        (o) => o.statut_commande !== OrderStatus.DELIVERED && o.statut_commande !== OrderStatus.CANCELLED,
-      ),
-    )
   }
 
   useEffect(() => {
@@ -210,6 +238,7 @@ export default function AdminCommandes() {
 
         if (latestOrderIdRef.current !== latestId) {
           latestOrderIdRef.current = latestId
+          playBellSound() // 🔔 Joue le son de cloche quand une nouvelle commande arrive
           await loadOrders()
         }
       } catch (e) {
@@ -242,17 +271,25 @@ export default function AdminCommandes() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        {orderStats.map((stat, index) => (
-          <Card key={index} className="bg-white">
-            <CardContent className="p-4 lg:p-6">
-              <p className="text-gray-500 text-sm mb-1">{stat.label}</p>
-              <p className="text-3xl lg:text-4xl font-bold text-gray-900">{stat.value}</p>
-              {stat.highlight && <p className={`text-sm mt-1 ${stat.highlightColor}`}>{stat.highlight}</p>}
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      {isLoadingOrders ? (
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-8">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Card key={i} className="bg-white animate-pulse h-24" />
+          ))}
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          {orderStats.map((stat, index) => (
+            <Card key={index} className="bg-white">
+              <CardContent className="p-4 lg:p-6">
+                <p className="text-gray-500 text-sm mb-1">{stat.label}</p>
+                <p className="text-3xl lg:text-4xl font-bold text-gray-900">{stat.value}</p>
+                {stat.highlight && <p className={`text-sm mt-1 ${stat.highlightColor}`}>{stat.highlight}</p>}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
 
       {/* Filters and Search */}
       <div className="flex flex-col lg:flex-row gap-4 mb-6">
@@ -465,25 +502,29 @@ export default function AdminCommandes() {
                     return { key, base, acc, sup, total }
                   })
 
-                  const ItemRow = ({ item }: { item: any }) => (
-                    <div className="flex items-center gap-4 bg-gray-50 p-3 rounded-lg">
-                      <Image
-                        src={item.image_plat || "/placeholder.svg"}
-                        alt={item.nom_plat || "Plat"}
-                        width={60}
-                        height={60}
-                        className="rounded-lg object-cover"
-                      />
-                      <div className="flex-1">
-                        <p className="font-medium">{item.nom_plat}</p>
-                        <p className="text-sm text-gray-500">
-                          Quantite: {item.quantite}
-                          {item.taille && ` • ${item.taille}`}
-                        </p>
+                  const ItemRow = ({ item }: { item: any }) => {
+                    const associatedPlat = allPlats.find((p) => p.id === item.id_plat)
+                    return (
+                      <div className="flex items-center gap-4 bg-gray-50 p-3 rounded-lg">
+                        <Image
+                          src={associatedPlat?.image || item.image_plat || "/placeholder.svg"}
+                          alt={associatedPlat?.nom || item.nom_plat || "Plat"}
+                          width={60}
+                          height={60}
+                          className="rounded-lg object-cover"
+                        />
+                        <div className="flex-1">
+                          <p className="font-medium">{associatedPlat?.nom || item.nom_plat}</p>
+                          <p className="text-xs text-gray-500">{associatedPlat?.categorie || ""}</p>
+                          <p className="text-sm text-gray-500">
+                            Quantite: {item.quantite}
+                            {item.taille && ` • ${item.taille}`}
+                          </p>
+                        </div>
+                        <p className="font-semibold text-orange-500">{Number(item.prix_total).toFixed(2)} f</p>
                       </div>
-                      <p className="font-semibold text-orange-500">{Number(item.prix_total).toFixed(2)} f</p>
-                    </div>
-                  )
+                    )
+                  }
 
                   return (
                     <div className="space-y-6">
@@ -509,7 +550,7 @@ export default function AdminCommandes() {
                                   <p className="font-bold text-orange-500">{Number(p.total).toFixed(2)} f</p>
                                 </div>
 
-                                {p.base && (
+                                        {p.base && (
                                   <div className="space-y-2">
                                     <p className="text-xs font-semibold text-gray-500 uppercase">Base</p>
                                     <ItemRow item={p.base} />

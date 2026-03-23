@@ -92,8 +92,9 @@ export interface Paiement {
   id: string
   mode: "airtel_money" | "moov_money" | "livraison"
   montant: number
-  statut: "en_attente" | "confirme" | "echoue"
+  statut: "en_attente" | "en_cours" | "confirme" | "echoue"
   montant_en_especes?: number
+  transaction_id?: string
 }
 
 export interface Commande {
@@ -123,6 +124,12 @@ export const ADMIN_PERMISSIONS = {
   PLATS_MANAGE: "plats.manage",
   ORDERS_VIEW: "orders.view",
   ORDERS_UPDATE: "orders.update",
+  ORDERS_STATUS_CONFIRMED: "commande.status.confirmee",
+  ORDERS_STATUS_PREPARING: "commande.status.en_preparation",
+  ORDERS_STATUS_READY: "commande.status.pret",
+  ORDERS_STATUS_DELIVERING: "commande.status.en_livraison",
+  ORDERS_STATUS_DELIVERED: "commande.status.livree",
+  ORDERS_STATUS_CANCELLED: "commande.status.annulee",
   ORDERS_PREPARATION_UPDATE: "orders.preparation.update",
   ORDERS_LIVREE_CONFIRM: "orders.livree.confirm",
   CLIENTS_VIEW: "clients.view",
