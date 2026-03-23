@@ -144,17 +144,16 @@ export function DishesProvider({ children }: { children: ReactNode }) {
   const deletePlat = (id: string) => {
     ;(async () => {
       try {
-        // Au lieu de supprimer, on marque comme "inactif"
-        // Cela assure que le plat disparaît des pages publiques mais reste en BD
-        const res = await platsApi.update(id, { statut: "inactif" } as any)
+        // ÉTAPE 1: Supprimer de Supabase
+        const res = await platsApi.delete(id)
         
         if (!res.success) {
-          console.error(`[deletePlat] Erreur:`, res.error)
+          console.error(`[deletePlat] Erreur Supabase:`, res.error)
           toast({ title: "Erreur", description: res.error || "Impossible de supprimer le plat." })
           return
         }
         
-        // Supprimer du UI immédiatement
+        // ÉTAPE 2: Supprimer du UI immédiatement
         const filterList = (list: Plat[]) => list.filter((p) => p.id !== id)
         
         setPlatsMenu((prev) => filterList(prev))
@@ -163,7 +162,7 @@ export function DishesProvider({ children }: { children: ReactNode }) {
         setPlatsSupplements((prev) => filterList(prev))
         setPopularDishes((prev) => prev.filter((p) => p.id !== id))
         
-        // Recharger pour synchroniser
+        // ÉTAPE 3: Recharger les données après 300ms pour synchroniser avec Supabase
         setTimeout(() => {
           reloadPlats()
         }, 300)
