@@ -70,6 +70,19 @@ export default function MesCommandesDetailPage() {
   const statusClass = (status: OrderStatus | string) =>
     STATUTS_COMMANDE[status as OrderStatus]?.color || "bg-gray-100 text-gray-700"
 
+  const getPaymentModeLabel = (mode?: string) => {
+    switch (mode) {
+      case "airtel_money":
+        return "Airtel Money"
+      case "moov_money":
+        return "Moov Money"
+      case "livraison":
+        return "Paiement à la livraison"
+      default:
+        return mode || "Non renseigné"
+    }
+  }
+
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <Header />
@@ -124,6 +137,24 @@ export default function MesCommandesDetailPage() {
                       {order.ville ? `, ${order.ville}` : ""}
                     </p>
                   </div>
+
+                  {order.paiement && (
+                    <div className="text-sm bg-gray-50 p-4 rounded-lg">
+                      <p className="text-muted-foreground mb-1">Paiement</p>
+                      <p className="flex justify-between gap-4">
+                        <span className="text-muted-foreground">Mode</span>
+                        <span className="font-medium">{getPaymentModeLabel(order.paiement.mode)}</span>
+                      </p>
+                      <p className="flex justify-between gap-4 mt-1">
+                        <span className="text-muted-foreground">Statut</span>
+                        <span className="font-medium">{order.paiement.statut || "-"}</span>
+                      </p>
+                      <p className="flex justify-between gap-4 mt-1">
+                        <span className="text-muted-foreground">Montant</span>
+                        <span className="font-medium">{Number(order.paiement.montant || 0).toFixed(2)} f</span>
+                      </p>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 

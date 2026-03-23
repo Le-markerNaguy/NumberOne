@@ -1,6 +1,5 @@
 // This file simulates API calls - in production, replace with real API endpoints
 
-import { platsBase, platsAccompagnement, platsSupplements, platsMenu } from "./data"
 import type { Plat, Commande, Admin, Role, StatutCommande, Client, LigneCommande } from "./types"
 import { OrderStatus } from "./types"
 import { supabase } from "./supabase-client"
@@ -33,7 +32,8 @@ function parseJsonSafe<T>(value: any, fallback: T): T {
 }
 
 function normalizeCommandeRow(row: any): CommandeResponse {
-  const lignes = parseJsonSafe<LigneCommande[]>(row.lignes, [])
+  const lignesRaw = parseJsonSafe<any[]>(row.lignes, [])
+  const lignes = (lignesRaw || []).map(normalizeLigneCommande)
   const client = parseJsonSafe<Client | null>(row.client, row.client ?? null) as Client | null
   const paiement = parseJsonSafe<any | null>(row.paiement, row.paiement ?? null)
 
@@ -43,6 +43,50 @@ function normalizeCommandeRow(row: any): CommandeResponse {
     client: client as any,
     paiement,
   } as CommandeResponse
+}
+
+function normalizeLigneCommande(line: any): LigneCommande {
+  const idStr = String(line?.id ?? line?.id_plat ?? "")
+
+  // Ancien format possible:
+  // - nom, prix, plat_id, quantite
+  const nom_plat = line?.nom_plat ?? line?.nom ?? "Plat"
+  const quantite = Number(line?.quantite ?? 1)
+  const prix_unitaire = Number(line?.prix_unitaire ?? line?.prix ?? 0)
+  const prix_total =
+    line?.prix_total != null
+      ? Number(line.prix_total)
+      : line?.prix != null
+        ? Number(line.prix) * quantite
+        : prix_unitaire * quantite
+
+  const id_plat = String(line?.id_plat ?? line?.plat_id ?? "")
+  const image_plat = line?.image_plat ?? line?.image ?? undefined
+  const taille = line?.taille ?? undefined
+
+  // Heuristique: on déduit le type_element à partir du pattern de l'id
+  const inferredType =
+    idStr.endsWith("-base")
+      ? "base"
+      : idStr.includes("-acc-")
+        ? "accompagnement"
+        : idStr.includes("-sup-")
+          ? "supplement"
+          : undefined
+
+  const type_element = (line?.type_element as any) ?? inferredType
+
+  return {
+    id: String(line?.id ?? `ligne-${id_plat}-${nom_plat}`),
+    id_plat,
+    nom_plat,
+    image_plat,
+    quantite,
+    prix_unitaire,
+    prix_total,
+    taille,
+    type_element,
+  }
 }
 
 let mockCommandes: Commande[] = [
@@ -491,6 +535,23 @@ export const commandesApi = {
 
     const rows = (data || []).map(normalizeCommandeRow)
     return { success: true, data: rows }
+  },
+
+  async getLatest(): Promise<ApiResponse<CommandeResponse | null>> {
+    const { data, error } = await supabase
+      .from("commandes")
+      .select("*")
+      .order("date_commande", { ascending: false })
+      .limit(1)
+
+    if (error) {
+      console.error("Erreur Supabase commandes.getLatest:", error)
+      return { success: false, error: "Impossible de charger la dernière commande" }
+    }
+
+    const row = (data || [])[0]
+    if (!row) return { success: true, data: null }
+    return { success: true, data: normalizeCommandeRow(row) }
   },
 
   async getMine(): Promise<ApiResponse<CommandeResponse[]>> {

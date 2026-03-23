@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useAuth } from "@/contexts/auth-context"
 import { useToast } from "@/hooks/use-toast"
 import { Search, ChevronLeft, ChevronRight, Eye, X } from "lucide-react"
@@ -58,6 +58,19 @@ function formatTimeAgo(date: Date) {
   return `Il y a ${Math.floor(hours / 24)}j`
 }
 
+function getPaymentModeLabel(mode?: string) {
+  switch (mode) {
+    case "airtel_money":
+      return "Airtel Money"
+    case "moov_money":
+      return "Moov Money"
+    case "livraison":
+      return "Paiement à la livraison"
+    default:
+      return mode || "Non renseigné"
+  }
+}
+
 export default function AdminCommandes() {
   const [orders, setOrders] = useState<CommandeResponse[]>([])
   const [activeFilter, setActiveFilter] = useState("Toutes")
@@ -65,6 +78,9 @@ export default function AdminCommandes() {
   const [selectedOrder, setSelectedOrder] = useState<CommandeResponse | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
   const ordersPerPage = 6
+
+  const [pollingEnabled, setPollingEnabled] = useState(false)
+  const latestOrderIdRef = useRef<string | null>(null)
 
   const orderStats = [
     {
@@ -145,31 +161,68 @@ export default function AdminCommandes() {
     }
   }
 
+  const loadOrders = async () => {
+    const res = await commandesApi.getAll()
+    if (!res.success) return
+
+    const data = res.data || []
+    // Ne pas afficher les commandes livrées ou annulées dans la liste principale
+    setOrders(
+      data.filter(
+        (o) => o.statut_commande !== OrderStatus.DELIVERED && o.statut_commande !== OrderStatus.CANCELLED,
+      ),
+    )
+  }
+
   useEffect(() => {
     let mounted = true
-    async function loadOrders() {
+    async function init() {
       try {
-        const res = await commandesApi.getAll()
-        if (mounted && res.success) {
-          const data = res.data || []
-          // Ne pas afficher les commandes livrées ou annulées dans la liste principale
-          setOrders(
-            data.filter(
-              (o) =>
-                o.statut_commande !== OrderStatus.DELIVERED &&
-                o.statut_commande !== OrderStatus.CANCELLED,
-            ),
-          )
-        }
+        await loadOrders()
+        const latestRes = await commandesApi.getLatest()
+        if (!mounted) return
+        latestOrderIdRef.current = latestRes.success ? latestRes.data?.id ?? null : null
       } catch (e) {
-        console.error("Failed to load commandes:", e)
+        console.error("Failed to init commandes:", e)
       }
     }
-    loadOrders()
+    init()
     return () => {
       mounted = false
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  useEffect(() => {
+    if (!pollingEnabled) return
+
+    let mounted = true
+    const intervalMs = 5000
+
+    const id = window.setInterval(async () => {
+      try {
+        if (!mounted) return
+        const latestRes = await commandesApi.getLatest()
+        if (!latestRes.success || !latestRes.data) return
+
+        const latestId = latestRes.data.id
+        if (!latestId) return
+
+        if (latestOrderIdRef.current !== latestId) {
+          latestOrderIdRef.current = latestId
+          await loadOrders()
+        }
+      } catch (e) {
+        console.error("Polling commandes failed:", e)
+      }
+    }, intervalMs)
+
+    return () => {
+      mounted = false
+      window.clearInterval(id)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pollingEnabled])
 
   return (
     <div>
@@ -178,9 +231,14 @@ export default function AdminCommandes() {
           <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">Gestion des commandes</h1>
           <p className="text-gray-500">Suivez et gerez toutes les commandes en temps reel</p>
         </div>
-        <Button className="bg-orange-500 hover:bg-orange-600 text-white">
-          {orders.filter((o) => o.statut_commande === OrderStatus.PENDING).length} nouvelles
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button className="bg-orange-500 hover:bg-orange-600 text-white">
+            {orders.filter((o) => o.statut_commande === OrderStatus.PENDING).length} nouvelles
+          </Button>
+          <Button variant="outline" onClick={() => setPollingEnabled((p) => !p)}>
+            {pollingEnabled ? "Arrêter le polling" : "Démarrer le polling"}
+          </Button>
+        </div>
       </div>
 
       {/* Stats Cards */}
@@ -491,6 +549,22 @@ export default function AdminCommandes() {
 
               {/* Order Summary */}
               <div className="border-t pt-4">
+                {selectedOrder.paiement && (
+                  <div className="mb-4 p-4 bg-gray-50 rounded-lg space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-500">Mode de paiement</span>
+                      <span className="font-medium">{getPaymentModeLabel((selectedOrder.paiement as any).mode)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-500">Statut</span>
+                      <span className="font-medium">{(selectedOrder.paiement as any).statut || "-"}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-500">Montant</span>
+                      <span className="font-medium">{Number((selectedOrder.paiement as any).montant || 0).toFixed(2)} f</span>
+                    </div>
+                  </div>
+                )}
                 <div className="flex justify-between mb-2">
                   <span className="text-gray-500">Sous-total</span>
                   <span>{Number(selectedOrder.sous_total).toFixed(2)} f</span>
@@ -498,10 +572,6 @@ export default function AdminCommandes() {
                 <div className="flex justify-between mb-2">
                   <span className="text-gray-500">Frais de livraison</span>
                   <span>{Number(selectedOrder.frais_livraison).toFixed(2)} f</span>
-                </div>
-                <div className="flex justify-between mb-2">
-                  <span className="text-gray-500">TVA (16%)</span>
-                  <span>{Number(selectedOrder.tva).toFixed(2)} f</span>
                 </div>
                 <div className="flex justify-between text-xl font-bold pt-2 border-t">
                   <span>Total</span>

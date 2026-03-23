@@ -482,6 +482,23 @@ export default function AdminPlats() {
                       <p className="text-2xl font-bold">{selectedDish.statut === "actif" ? "Actif" : "Inactif"}</p>
                     </div>
                   </div>
+
+                  <div className="flex gap-2">
+                    <Button variant="outline" className="flex-1" onClick={() => openModal("edit", selectedDish)}>
+                      Modifier
+                    </Button>
+                    <Button
+                      className="flex-1 bg-red-500 hover:bg-red-600 text-white"
+                      onClick={() => {
+                        if (!selectedDish?.id) return
+                        if (!confirm("Supprimer ce plat ?")) return
+                        handleDeleteDish(selectedDish.id)
+                        closeModal()
+                      }}
+                    >
+                      Supprimer
+                    </Button>
+                  </div>
                 </div>
               ) : (
                 <div className="space-y-4">
